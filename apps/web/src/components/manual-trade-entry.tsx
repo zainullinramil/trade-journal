@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { MonetaryField } from "@/components/privacy";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { postJson } from "@/lib/use-api";
+import { postJson, useApi } from "@/lib/use-api";
 
 import { AccountPicker } from "./account-picker";
 import { fmtNumber } from "@/lib/utils";
@@ -26,10 +27,18 @@ interface ManualLeg {
   fee: string;
 }
 
+function accountFromParams(params: URLSearchParams): string {
+  const selected = params.get("accounts")?.split(",").filter(Boolean) ?? [];
+  return selected.length === 1 ? selected[0]! : "";
+}
+
+const decimal = (value: string) => value.replaceAll(",", ".");
+
 export function ManualTradeEntry({ onSaved }: { onSaved: () => void }) {
   const t = useTranslations("import");
   const tCommon = useTranslations("common");
-  const [accountId, setAccountId] = useState("");
+  const params = useSearchParams();
+  const [accountId, setAccountId] = useState(() => accountFromParams(params));
   const [symbol, setSymbol] = useState("");
   const [notes, setNotes] = useState("");
   const [legs, setLegs] = useState<ManualLeg[]>([
@@ -39,6 +48,10 @@ export function ManualTradeEntry({ onSaved }: { onSaved: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const fieldId = useId();
+  const symbolsUrl = accountId
+    ? `/api/trades?view=symbols&accounts=${encodeURIComponent(accountId)}`
+    : "/api/trades?view=symbols";
+  const { data: symbolsData } = useApi<{ symbols: string[] }>(symbolsUrl);
 
   const setLeg = (index: number, patch: Partial<ManualLeg>) =>
     setLegs((current) => current.map((leg, i) => (i === index ? { ...leg, ...patch } : leg)));
@@ -84,10 +97,17 @@ export function ManualTradeEntry({ onSaved }: { onSaved: () => void }) {
         </Label>
         <Input
           id={`${fieldId}-symbol`}
+          list={`${fieldId}-symbols`}
           value={symbol}
           onChange={(event) => setSymbol(event.target.value.toUpperCase())}
           placeholder={t("manualSymbolPlaceholder")}
+          autoComplete="off"
         />
+        <datalist id={`${fieldId}-symbols`}>
+          {(symbolsData?.symbols ?? []).map((item) => (
+            <option key={item} value={item} />
+          ))}
+        </datalist>
       </div>
       <div className="manual-executions space-y-3">
         {legs.map((leg, index) => (
@@ -127,7 +147,7 @@ export function ManualTradeEntry({ onSaved }: { onSaved: () => void }) {
                 placeholder={t("qtyPlaceholder")}
                 inputMode="decimal"
                 value={leg.quantity}
-                onChange={(event) => setLeg(index, { quantity: event.target.value })}
+                onChange={(event) => setLeg(index, { quantity: decimal(event.target.value) })}
               />
             </label>
             <label className="grid min-w-0 gap-1 text-xs text-muted-foreground">
@@ -137,7 +157,7 @@ export function ManualTradeEntry({ onSaved }: { onSaved: () => void }) {
                   placeholder={t("pricePlaceholder")}
                   inputMode="decimal"
                   value={leg.price}
-                  onChange={(event) => setLeg(index, { price: event.target.value })}
+                  onChange={(event) => setLeg(index, { price: decimal(event.target.value) })}
                 />
               </MonetaryField>
             </label>
@@ -148,7 +168,7 @@ export function ManualTradeEntry({ onSaved }: { onSaved: () => void }) {
                   placeholder={t("feePlaceholder")}
                   inputMode="decimal"
                   value={leg.fee}
-                  onChange={(event) => setLeg(index, { fee: event.target.value })}
+                  onChange={(event) => setLeg(index, { fee: decimal(event.target.value) })}
                 />
               </MonetaryField>
             </label>

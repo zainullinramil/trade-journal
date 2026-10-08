@@ -31,12 +31,14 @@ export function AddTradeDialog({ onSaved }: { onSaved: () => void }) {
           <DialogTitle>{t("addTrade")}</DialogTitle>
           <DialogDescription>{t("addTradeDescription")}</DialogDescription>
         </DialogHeader>
-        <ManualTradeEntry
-          onSaved={() => {
-            setOpen(false);
-            onSaved();
-          }}
-        />
+        {open && (
+          <ManualTradeEntry
+            onSaved={() => {
+              setOpen(false);
+              onSaved();
+            }}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
