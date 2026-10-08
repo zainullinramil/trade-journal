@@ -11,9 +11,18 @@ import {
   getAiProvider,
   getAiSettings,
   setAiKey,
+  setLmStudioBaseUrl,
   setSetting,
+  lmStudioBaseUrlEnvironment,
 } from "@/server/settings";
-import { AI_PROVIDERS, AI_PROVIDER_NAMES, isAiProvider, type AiProvider } from "@/lib/ai-settings";
+import {
+  AI_PROVIDERS,
+  AI_PROVIDER_NAMES,
+  isAiProvider,
+  isLmStudioBaseUrl,
+  normalizeLmStudioBaseUrl,
+  type AiProvider,
+} from "@/lib/ai-settings";
 import { isTimeZone } from "@/lib/timezone";
 import { parseCurrencyConversion, type CurrencyConversion } from "@/lib/currencies";
 
@@ -34,9 +43,13 @@ interface SettingsBody {
   /** Set to a key string to store (encrypted), or null to clear. Absent = unchanged. */
   anthropicKey?: string | null;
   openaiKey?: string | null;
+  openrouterKey?: string | null;
+  lmstudioKey?: string | null;
+  lmstudioBaseUrl?: string | null;
   aiProvider?: AiProvider;
   aiModel?: string;
   currencyConversion?: CurrencyConversion;
+  [key: string]: unknown;
 }
 
 export const PATCH = handler(async (request: Request) => {
@@ -68,7 +81,7 @@ export const PATCH = handler(async (request: Request) => {
     }
   }
   if (body.aiProvider !== undefined)
-    requireValue(isAiProvider(body.aiProvider), "Choose Anthropic or OpenAI.");
+    requireValue(isAiProvider(body.aiProvider), "Choose a supported AI provider.");
   const provider = body.aiProvider ?? getAiProvider();
   if (body.aiModel !== undefined)
     requireValue(
@@ -76,6 +89,20 @@ export const PATCH = handler(async (request: Request) => {
         /^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,199}$/.test(body.aiModel.trim()),
       "Enter a valid model ID.",
     );
+  if (body.lmstudioBaseUrl !== undefined) {
+    requireValue(
+      body.lmstudioBaseUrl === null ||
+        (typeof body.lmstudioBaseUrl === "string" &&
+          body.lmstudioBaseUrl.trim().length > 0 &&
+          body.lmstudioBaseUrl.length <= 512 &&
+          isLmStudioBaseUrl(body.lmstudioBaseUrl)),
+      "Enter a valid LM Studio base URL.",
+    );
+    requireValue(
+      !lmStudioBaseUrlEnvironment(),
+      "LM Studio uses LM_STUDIO_BASE_URL from the server environment. Update or remove it on the server.",
+    );
+  }
   for (const id of AI_PROVIDERS) {
     const key = body[`${id}Key`];
     if (key === undefined) continue;
@@ -124,6 +151,13 @@ export const PATCH = handler(async (request: Request) => {
     for (const id of AI_PROVIDERS) {
       const key = body[`${id}Key`];
       if (key !== undefined) setAiKey(id, key);
+    }
+    if (body.lmstudioBaseUrl !== undefined) {
+      setLmStudioBaseUrl(
+        body.lmstudioBaseUrl === null
+          ? null
+          : normalizeLmStudioBaseUrl(body.lmstudioBaseUrl as string),
+      );
     }
     if (body.aiProvider !== undefined) setSetting("aiProvider", body.aiProvider);
     if (body.aiModel !== undefined) setSetting(aiModelSetting(provider), body.aiModel.trim());

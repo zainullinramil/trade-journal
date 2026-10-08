@@ -60,10 +60,19 @@ const modelResult = (output: unknown, finishReason = "stop") =>
   vi
     .mocked(generateText)
     .mockResolvedValue({ output, finishReason } as Awaited<ReturnType<typeof generateText>>);
+const modelProvider = (provider: string) => {
+  if (provider === "openai") return "openai.responses";
+  if (provider === "anthropic") return "anthropic.messages";
+  return "openai.chat";
+};
+
 beforeEach(() => {
   vi.stubEnv("JOURNAL_PASSWORD", "");
   vi.stubEnv("OPENAI_API_KEY", "");
   vi.stubEnv("ANTHROPIC_API_KEY", "");
+  vi.stubEnv("OPENROUTER_API_KEY", "");
+  vi.stubEnv("LM_STUDIO_API_KEY", "");
+  vi.stubEnv("LM_STUDIO_BASE_URL", "");
   db.delete(trades).run();
   db.delete(executions).run();
   db.delete(accounts).run();
@@ -94,7 +103,7 @@ it("keeps native parsing local and unchanged when AI is off", async () => {
   expect(result.aiPreviewToken).toBeUndefined();
   expect(generateText).not.toHaveBeenCalled();
 });
-it.each(["openai", "anthropic"])(
+it.each(["openai", "anthropic", "openrouter", "lmstudio"])(
   "uses %s for preview only, with no stored upload key",
   async (provider) => {
     const response = await request({ ...base, mode: "preview", ai: { ...base.ai, provider } });
@@ -106,10 +115,7 @@ it.each(["openai", "anthropic"])(
     expect(db.select().from(executions).all()).toHaveLength(0);
     expect(db.select().from(settings).all()).toHaveLength(0);
     const options = vi.mocked(generateText).mock.calls[0]![0];
-    expect(options.model).toHaveProperty(
-      "provider",
-      provider === "openai" ? "openai.responses" : "anthropic.messages",
-    );
+    expect(options.model).toHaveProperty("provider", modelProvider(provider));
     if (provider === "openai")
       expect(options.providerOptions).toEqual({ openai: { store: false } });
     expect(JSON.stringify(preview)).not.toContain("test-only-key");
@@ -188,24 +194,40 @@ it("does not send an upload without a key, or when it exceeds the text limit", a
   );
   expect(generateText).not.toHaveBeenCalled();
 });
-it.each(["openai", "anthropic"])("sends PDF bytes as a file input for %s", async (provider) => {
+it.each(["openai", "anthropic", "openrouter", "lmstudio"])(
+  "sends PDF bytes as a file input for %s",
+  async (provider) => {
+    const response = await request({
+      ...base,
+      mode: "preview",
+      encoding: "pdf",
+      content: Buffer.from("%PDF-1.4\nsynthetic test").toString("base64"),
+      ai: { ...base.ai, provider },
+    });
+    expect(response.status).toBe(200);
+    expect(JSON.stringify(vi.mocked(generateText).mock.calls[0]![0].messages)).toContain(
+      '"mediaType":"application/pdf"',
+    );
+  },
+);
+it("fails closed on truncated model output and sanitizes provider errors", async () => {
+  modelResult(valid(), "length");
+  expect((await request({ ...base, mode: "preview" })).status).toBe(400);
+  vi.mocked(generateText).mockRejectedValue(new Error("private-key provider request contents"));
+  const response = await request({ ...base, mode: "preview" });
+  expect(response.status).toBe(400);
+  expect(JSON.stringify(await response.json())).not.toContain("private-key");
+  expect(db.select().from(executions).all()).toHaveLength(0);
+});
+it("explains unreachable LM Studio instead of a 500", async () => {
+  vi.mocked(generateText).mockRejectedValue(new Error("fetch failed: connect ECONNREFUSED"));
   const response = await request({
     ...base,
     mode: "preview",
-    encoding: "pdf",
-    content: Buffer.from("%PDF-1.4\nsynthetic test").toString("base64"),
-    ai: { ...base.ai, provider },
+    ai: { ...base.ai, provider: "lmstudio" },
   });
-  expect(response.status).toBe(200);
-  expect(JSON.stringify(vi.mocked(generateText).mock.calls[0]![0].messages)).toContain(
-    '"mediaType":"application/pdf"',
-  );
-});
-it("fails closed on truncated model output and sanitizes provider errors", async () => {
-  modelResult(valid(), "length");
-  expect((await request({ ...base, mode: "preview" })).ok).toBe(false);
-  vi.mocked(generateText).mockRejectedValue(new Error("private-key provider request contents"));
-  const response = await request({ ...base, mode: "preview" });
-  expect(JSON.stringify(await response.json())).not.toContain("private-key");
-  expect(db.select().from(executions).all()).toHaveLength(0);
+  expect(response.status).toBe(400);
+  const body = await response.json();
+  expect(body.error).toMatch(/host\.docker\.internal/);
+  expect(body.error).not.toMatch(/ECONNREFUSED|private/);
 });

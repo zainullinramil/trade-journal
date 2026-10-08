@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { CalendarPnlPoint } from "@/lib/calendar-insights";
 import { cn } from "@/lib/utils";
 import { Pnl } from "./pnl";
@@ -18,6 +19,7 @@ export function CalendarDayPreview({
   currency: string;
   monetary: boolean;
 }) {
+  const t = useTranslations("calendar");
   const low = Math.min(0, ...points.map((point) => point.cumNetPnl));
   const high = Math.max(0, ...points.map((point) => point.cumNetPnl));
   const y = (value: number) => (high === low ? 50 : 88 - ((value - low) / (high - low)) * 76);
@@ -30,11 +32,11 @@ export function CalendarDayPreview({
   return (
     <div className="w-64 max-w-full">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-xs">Running P&L</span>
+        <span className="text-xs">{t("runningPnl")}</span>
         {monetary ? (
           <Pnl value={total} currency={currency} className="text-sm font-semibold" />
         ) : (
-          <span className="text-xs">Multiple currencies</span>
+          <span className="text-xs">{t("multipleCurrencies")}</span>
         )}
       </div>
       {monetary && points.length > 0 ? (
@@ -42,7 +44,7 @@ export function CalendarDayPreview({
           <svg
             viewBox="0 0 264 100"
             role="img"
-            aria-label={`Running net P&L across ${trades} closed trades`}
+            aria-label={t("runningPnlAria", { trades })}
             className={cn(
               "journal-calendar-pnl-preview my-2 block w-full",
               total > 0 ? "text-profit" : total < 0 ? "text-loss" : "text-muted-foreground",
@@ -69,18 +71,14 @@ export function CalendarDayPreview({
             <circle cx="256" cy={y(points.at(-1)!.cumNetPnl)} r="3" fill="currentColor" />
           </svg>
           <div className="flex justify-between text-[10px]">
-            <span>Before first close</span>
-            <span>After last close</span>
+            <span>{t("beforeFirstClose")}</span>
+            <span>{t("afterLastClose")}</span>
           </div>
-          <p className="mt-2 text-[11px]">
-            {trades} closed trade{trades === 1 ? "" : "s"} · Net of fees
-          </p>
+          <p className="mt-2 text-[11px]">{t("closedTradesFees", { count: trades })}</p>
         </>
       ) : (
         <p className="mt-3 text-xs">
-          {!monetary
-            ? "Select accounts with one currency to view the running P&L."
-            : "No closed trades on this day."}
+          {!monetary ? t("selectOneCurrency") : t("noClosedOnDay")}
         </p>
       )}
     </div>

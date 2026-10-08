@@ -27,6 +27,9 @@ beforeEach(() => {
   db.delete(settings).run();
   vi.stubEnv("ANTHROPIC_API_KEY", "");
   vi.stubEnv("OPENAI_API_KEY", "");
+  vi.stubEnv("OPENROUTER_API_KEY", "");
+  vi.stubEnv("LM_STUDIO_API_KEY", "");
+  vi.stubEnv("LM_STUDIO_BASE_URL", "");
   vi.stubEnv("JOURNAL_PASSWORD", "");
   vi.stubGlobal(
     "fetch",
@@ -124,17 +127,56 @@ describe("AI provider settings", () => {
     expect(getAiProvider()).toBe("openai");
   });
 
-  it.each(["openai", "anthropic"] as const)(
+  it.each(["openai", "anthropic", "openrouter", "lmstudio"] as const)(
     "honors %s environment precedence and blocks misleading key edits",
     async (provider) => {
       await save({ [`${provider}Key`]: "fixture-saved" });
-      vi.stubEnv(provider === "openai" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY", "fixture-env");
+      const envKey =
+        provider === "openai"
+          ? "OPENAI_API_KEY"
+          : provider === "anthropic"
+            ? "ANTHROPIC_API_KEY"
+            : provider === "openrouter"
+              ? "OPENROUTER_API_KEY"
+              : "LM_STUDIO_API_KEY";
+      vi.stubEnv(envKey, "fixture-env");
       expect(getAiKey(provider)).toBe("fixture-env");
       for (const key of [null, "fixture-replacement"])
         expect((await save({ [`${provider}Key`]: key })).status).toBe(400);
       expect((await save({ aiProvider: provider, aiModel: "custom-text-model" })).status).toBe(200);
     },
   );
+
+  it("keeps OpenRouter and LM Studio model settings separate", async () => {
+    expect(
+      (
+        await save({
+          aiProvider: "openrouter",
+          openrouterKey: "fixture-openrouter",
+          aiModel: "anthropic/claude-3.5-sonnet",
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await save({
+          aiProvider: "lmstudio",
+          lmstudioKey: "fixture-lmstudio",
+          lmstudioBaseUrl: "http://127.0.0.1:9999",
+          aiModel: "my-local-model",
+        })
+      ).status,
+    ).toBe(200);
+    await save({ aiProvider: "openrouter" });
+    expect(getAiModel("openrouter")).toBe("anthropic/claude-3.5-sonnet");
+    await save({ aiProvider: "lmstudio" });
+    expect(getAiModel("lmstudio")).toBe("my-local-model");
+    expect(await state()).toMatchObject({
+      aiConnections: {
+        lmstudio: { baseUrl: "http://127.0.0.1:9999/v1", configured: true },
+      },
+    });
+  });
 
   it("validates the entire request before writing any settings", async () => {
     for (const invalid of [
@@ -143,9 +185,13 @@ describe("AI provider settings", () => {
       { aiModel: 42 },
       { aiModel: "" },
       { aiModel: "a\nb" },
+      { lmstudioBaseUrl: "ftp://bad" },
+      { lmstudioBaseUrl: "" },
       ...["", " ", 42, {}, "key\nvalue", "a".repeat(4097)].flatMap((key) => [
         { openaiKey: key },
         { anthropicKey: key },
+        { openrouterKey: key },
+        { lmstudioKey: key },
       ]),
     ]) {
       expect((await save({ timeZone: "America/Jamaica", ...invalid })).status).toBe(400);
@@ -256,6 +302,62 @@ describe("AI provider requests through the real SDK adapters", () => {
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toContain(expected);
     expect((error as Error).message).not.toContain("fixture-private");
+  });
+
+  it("sends OpenRouter chat requests with the OpenRouter base URL", async () => {
+    await save({
+      aiProvider: "openrouter",
+      openrouterKey: "fixture-openrouter",
+      aiModel: "openai/gpt-4o-mini",
+    });
+    const fetcher = vi.fn(async () =>
+      Response.json({
+        id: "chatcmpl_fixture",
+        object: "chat.completion",
+        created: 1,
+        model: "openai/gpt-4o-mini",
+        choices: [{ index: 0, message: { role: "assistant", content: "OpenRouter fixture" } }],
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      }),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    expect(await runAi("Fixture prompt")).toBe("OpenRouter fixture");
+    const [url, init] = (fetcher.mock.calls as unknown as [string, RequestInit][])[0]!;
+    expect(url).toBe("https://openrouter.ai/api/v1/chat/completions");
+    expect(new Headers(init.headers).get("Authorization")).toBe("Bearer fixture-openrouter");
+    expect(JSON.parse(init.body as string)).toMatchObject({ model: "openai/gpt-4o-mini" });
+  });
+
+  it("sends LM Studio chat requests to the configured base URL", async () => {
+    await save({
+      aiProvider: "lmstudio",
+      lmstudioKey: "fixture-lmstudio",
+      lmstudioBaseUrl: "http://127.0.0.1:8765/v1",
+      aiModel: "loaded-model",
+    });
+    const fetcher = vi.fn(async () =>
+      Response.json({
+        id: "chatcmpl_fixture",
+        object: "chat.completion",
+        created: 1,
+        model: "loaded-model",
+        choices: [{ index: 0, message: { role: "assistant", content: "LM Studio fixture" } }],
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      }),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    expect(await runAi("Fixture prompt")).toBe("LM Studio fixture");
+    const [url, init] = (fetcher.mock.calls as unknown as [string, RequestInit][])[0]!;
+    expect(url).toBe("http://127.0.0.1:8765/v1/chat/completions");
+    expect(new Headers(init.headers).get("Authorization")).toBe("Bearer fixture-lmstudio");
+  });
+
+  it("treats LM Studio as unconfigured without a saved key even with a default base URL", async () => {
+    setSetting("aiProvider", "lmstudio");
+    expect(await state()).toMatchObject({
+      aiConfigured: false,
+      aiConnections: { lmstudio: { configured: false, baseUrl: "http://127.0.0.1:1234/v1" } },
+    });
   });
 
   it("preserves rate-limit guidance after the SDK exhausts its retries", async () => {

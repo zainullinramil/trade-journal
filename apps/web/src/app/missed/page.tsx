@@ -1,4 +1,6 @@
 "use client";
+
+import { useTranslations } from "next-intl";
 import { OptionSelect } from "@/components/ui/option-select";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -45,6 +47,8 @@ export default function MissedPage() {
   );
 }
 function Missed() {
+  const t = useTranslations("missed");
+  const tNav = useTranslations("nav");
   const { data, error, refresh } = useApi<{ trades: Missed[] }>("/api/workspace/missed"),
     { data: books } = useApi<{ playbooks: { id: string; name: string }[] }>("/api/playbooks");
   const [open, setOpen] = useState(false),
@@ -54,23 +58,25 @@ function Missed() {
     [archived, setArchived] = useState(false),
     [failure, setFailure] = useState(""),
     [busy, setBusy] = useState(false);
-  function edit(t?: Missed) {
-    setEditing(t?.id ?? null);
+  const directionLabel = (direction: string) =>
+    direction === "short" ? t("short") : direction === "long" ? t("long") : direction;
+  function edit(trade?: Missed) {
+    setEditing(trade?.id ?? null);
     setDraft(
-      t
+      trade
         ? {
-            symbol: t.symbol,
-            direction: t.direction,
+            symbol: trade.symbol,
+            direction: trade.direction,
             observedAt: new Date(
-              Date.parse(t.observedAt) - new Date(t.observedAt).getTimezoneOffset() * 60000,
+              Date.parse(trade.observedAt) - new Date(trade.observedAt).getTimezoneOffset() * 60000,
             )
               .toISOString()
               .slice(0, 16),
-            entry: t.entry?.toString() ?? "",
-            stop: t.stop?.toString() ?? "",
-            target: t.target?.toString() ?? "",
-            playbookId: t.playbookId ?? "",
-            notes: t.notes,
+            entry: trade.entry?.toString() ?? "",
+            stop: trade.stop?.toString() ?? "",
+            target: trade.target?.toString() ?? "",
+            playbookId: trade.playbookId ?? "",
+            notes: trade.notes,
           }
         : blank(),
     );
@@ -79,9 +85,9 @@ function Missed() {
   }
   const rows =
     data?.trades.filter(
-      (t) =>
-        Boolean(t.archivedAt) === archived &&
-        `${t.symbol} ${t.notes}`.toLowerCase().includes(search.toLowerCase()),
+      (trade) =>
+        Boolean(trade.archivedAt) === archived &&
+        `${trade.symbol} ${trade.notes}`.toLowerCase().includes(search.toLowerCase()),
     ) ?? [];
   const formField = (
     key: "symbol" | "observedAt" | "entry" | "stop" | "target",
@@ -103,23 +109,20 @@ function Missed() {
   return (
     <div>
       <FilterBar
-        title="Missed trades"
+        title={tNav("missedTrades")}
         actions={
           <Button size="sm" onClick={() => edit()}>
-            Log opportunity
+            {t("logOpportunity")}
           </Button>
         }
       />
       <div className="space-y-4 p-4">
-        <p className="text-sm text-muted-foreground">
-          Record setups you watched but did not take. These observations never enter your trade
-          count, P&L, or win rate.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("intro")}</p>
         <div className="flex flex-wrap items-center gap-4">
           <input
-            aria-label="Search missed trades"
+            aria-label={t("searchAria")}
             className={`${fieldClass} max-w-sm`}
-            placeholder="Search symbol or notes"
+            placeholder={t("searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -128,7 +131,7 @@ function Missed() {
               checked={archived}
               onCheckedChange={(checked) => setArchived(checked === true)}
             />
-            Show archived
+            {t("showArchived")}
           </label>
         </div>
         {(error || failure) && (
@@ -137,16 +140,16 @@ function Missed() {
           </p>
         )}
         <div className="grid gap-4 lg:grid-cols-2">
-          {rows.map((t) => (
-            <Card key={t.id}>
+          {rows.map((trade) => (
+            <Card key={trade.id}>
               <CardHeader>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <CardTitle>
-                    {t.symbol} · {t.direction}
+                    {trade.symbol} · {directionLabel(trade.direction)}
                   </CardTitle>
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => edit(t)}>
-                      Edit
+                    <Button variant="ghost" size="sm" onClick={() => edit(trade)}>
+                      {t("edit")}
                     </Button>
                     <Button
                       variant="ghost"
@@ -155,7 +158,7 @@ function Missed() {
                         try {
                           await postJson(
                             "/api/workspace/missed",
-                            { id: t.id, restore: !!t.archivedAt },
+                            { id: trade.id, restore: !!trade.archivedAt },
                             "DELETE",
                           );
                           refresh();
@@ -164,77 +167,84 @@ function Missed() {
                         }
                       }}
                     >
-                      {t.archivedAt ? "Restore" : "Archive"}
+                      {trade.archivedAt ? t("restore") : t("archive")}
                     </Button>
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {new Date(t.observedAt).toLocaleString()} ·{" "}
-                  {books?.playbooks.find((b) => b.id === t.playbookId)?.name ?? "No strategy"}
+                  {new Date(trade.observedAt).toLocaleString()} ·{" "}
+                  {books?.playbooks.find((b) => b.id === trade.playbookId)?.name ?? t("noStrategy")}
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-wrap gap-5 text-sm">
                   {[
-                    ["Entry", t.entry],
-                    ["Stop", t.stop],
-                    ["Target", t.target],
+                    [t("entry"), trade.entry],
+                    [t("stop"), trade.stop],
+                    [t("target"), trade.target],
                   ].map(([label, value]) => (
-                    <span key={label}>
+                    <span key={String(label)}>
                       <span className="text-muted-foreground">{label}: </span>
                       <MonetaryValue>{value ?? "-"}</MonetaryValue>
                     </span>
                   ))}
                 </div>
-                <Markdown>{t.notes || "No review yet."}</Markdown>
+                <Markdown>{trade.notes || t("noReview")}</Markdown>
                 <ReviewExport
                   containsFinancialData
                   document={{
-                    title: `Missed opportunity · ${t.symbol}`,
-                    subtitle: `${t.direction} · ${t.observedAt}`,
+                    title: t("exportTitle", { symbol: trade.symbol }),
+                    subtitle: t("exportSubtitle", {
+                      direction: directionLabel(trade.direction),
+                      when: trade.observedAt,
+                    }),
                     lines: [
-                      "Observation only: no executed trade or actual P&L.",
-                      `Planned entry: ${t.entry ?? "-"} | Stop: ${t.stop ?? "-"} | Target: ${t.target ?? "-"}`,
+                      t("exportObservation"),
+                      t("exportPlanned", {
+                        entry: trade.entry ?? "-",
+                        stop: trade.stop ?? "-",
+                        target: trade.target ?? "-",
+                      }),
                       "",
-                      t.notes,
+                      trade.notes,
                     ],
                   }}
                 />
-                <Attachments type="missed" id={t.id} />
+                <Attachments type="missed" id={trade.id} />
               </CardContent>
             </Card>
           ))}
         </div>
         {data && !rows.length && (
           <p className="py-16 text-center text-sm text-muted-foreground">
-            No {archived ? "archived " : ""}opportunities here yet.
+            {archived ? t("emptyArchived") : t("empty")}
           </p>
         )}
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
             <DialogHeader>
-              <DialogTitle>{editing ? "Edit opportunity" : "Log a missed opportunity"}</DialogTitle>
+              <DialogTitle>{editing ? t("editTitle") : t("logTitle")}</DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {formField("symbol", "Symbol")}
-              <Field label="Direction">
+              {formField("symbol", t("symbol"))}
+              <Field label={t("direction")}>
                 <OptionSelect
                   className={fieldClass}
                   value={draft.direction}
                   onValueChange={(next) => setDraft({ ...draft, direction: next })}
                 >
-                  <option value="long">Long</option>
-                  <option value="short">Short</option>
+                  <option value="long">{t("long")}</option>
+                  <option value="short">{t("short")}</option>
                 </OptionSelect>
               </Field>
-              {formField("observedAt", "Observed at (device time)", "datetime-local")}
-              <Field label="Strategy">
+              {formField("observedAt", t("observedAt"), "datetime-local")}
+              <Field label={t("strategy")}>
                 <OptionSelect
                   className={fieldClass}
                   value={draft.playbookId}
                   onValueChange={(next) => setDraft({ ...draft, playbookId: next })}
                 >
-                  <option value="">No strategy</option>
+                  <option value="">{t("noStrategy")}</option>
                   {books?.playbooks.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.name}
@@ -244,15 +254,15 @@ function Missed() {
               </Field>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {formField("entry", "Planned entry", "number")}
-              {formField("stop", "Planned stop", "number")}
-              {formField("target", "Planned target", "number")}
+              {formField("entry", t("plannedEntry"), "number")}
+              {formField("stop", t("plannedStop"), "number")}
+              {formField("target", t("plannedTarget"), "number")}
             </div>
             <RichEditor
               defaultMode="edit"
               value={draft.notes}
               onChange={(notes) => setDraft({ ...draft, notes })}
-              placeholder="Why did you miss it? What will you do differently?"
+              placeholder={t("notesPlaceholder")}
             />
             {failure && (
               <p role="alert" className="text-xs text-destructive">
@@ -276,13 +286,13 @@ function Missed() {
                   refresh();
                   setFailure("");
                 } catch (e) {
-                  setFailure(e instanceof Error ? e.message : "Could not save.");
+                  setFailure(e instanceof Error ? e.message : t("saveFailed"));
                 } finally {
                   setBusy(false);
                 }
               }}
             >
-              Save opportunity
+              {t("save")}
             </Button>
           </DialogContent>
         </Dialog>

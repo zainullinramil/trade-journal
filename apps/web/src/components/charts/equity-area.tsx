@@ -1,6 +1,7 @@
 "use client";
 
 import { useId } from "react";
+import { useTranslations } from "next-intl";
 import {
   Area,
   AreaChart,
@@ -26,7 +27,7 @@ export function EquityArea({
   data,
   height = 240,
   valueFormat = "money",
-  valueLabel = "Cumulative P&L",
+  valueLabel,
   currency = "USD",
   curve = "monotone",
 }: {
@@ -38,9 +39,11 @@ export function EquityArea({
   curve?: "monotone" | "stepAfter";
 }) {
   const t = useVizTokens();
+  const tc = useTranslations("charts");
   const id = useId().replace(/:/g, "");
   const privacy = usePrivacy();
   const privateMode = privacy && valueFormat === "money";
+  const seriesLabel = valueLabel ?? tc("cumulativePnl");
   const formatValue = (value: number) =>
     valueFormat === "percent" ? fmtPercent(value, 2) : fmtMoney(value, currency);
   if (!t) return <div style={{ height }} />;
@@ -91,7 +94,10 @@ export function EquityArea({
           <Tooltip
             contentStyle={tooltipStyle(t)}
             labelFormatter={(value) => String(value).slice(0, 10)}
-            formatter={(value) => [privateMode ? "Hidden" : formatValue(Number(value)), valueLabel]}
+            formatter={(value) => [
+              privateMode ? tc("hidden") : formatValue(Number(value)),
+              seriesLabel,
+            ]}
             cursor={{ stroke: t.inkMuted, strokeDasharray: "3 3" }}
           />
           <Area

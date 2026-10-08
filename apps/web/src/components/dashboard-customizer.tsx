@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { forwardRef, useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import {
@@ -45,31 +46,32 @@ interface DashboardCustomizerProps {
 
 // Decorative only: a new card remains available even without a dedicated icon.
 const cardIcons: Record<string, LucideIcon> = {
-  "Net P&L": Wallet,
-  "Trade win %": Percent,
-  "Profit factor": Scale,
-  "Day win %": CalendarCheck,
-  "Avg win / loss": ArrowUpDown,
-  "Edge Score": Gauge,
-  "Cumulative P&L": ChartLine,
-  "Daily P&L": ChartColumn,
-  Calendar: CalendarDays,
-  Activity,
-  "Max drawdown": TrendingDown,
-  Streaks: Flame,
-  "Expectancy / trade": Target,
-  "Avg duration": Timer,
-  "Best / worst day": CalendarCheck,
-  "Trade time performance": Clock3,
+  "widget-0": Wallet,
+  "widget-1": Percent,
+  "widget-2": Scale,
+  "widget-3": CalendarCheck,
+  "widget-4": ArrowUpDown,
+  "widget-5": Gauge,
+  "widget-6": ChartLine,
+  "widget-7": ChartColumn,
+  "widget-8": CalendarDays,
+  "widget-9": Activity,
+  "widget-10": TrendingDown,
+  "widget-11": Flame,
+  "widget-12": Target,
+  "widget-13": Timer,
+  "widget-14": CalendarCheck,
+  "widget-15": Clock3,
 };
 
 export function DashboardCustomizer(props: DashboardCustomizerProps) {
+  const t = useTranslations("dashboard");
   return (
     <Popover.Root open={props.open} onOpenChange={props.onOpenChange}>
       <Popover.Trigger asChild>
         <Button type="button" variant="outline" size="sm" className="dashboard-customize-trigger">
           <Settings2 />
-          Customize
+          {t("customize")}
           <ChevronDown className="dashboard-customize-chevron" />
         </Button>
       </Popover.Trigger>
@@ -85,6 +87,7 @@ const CustomizerPanel = forwardRef<HTMLDivElement, DashboardCustomizerProps>(
     { widgets, hidden, onVisibilityChange, onShowAll, onRestore },
     forwardedRef,
   ) {
+    const t = useTranslations("dashboard");
     const titleId = useId();
     const [query, setQuery] = useState("");
     const searchRef = useRef<HTMLInputElement>(null);
@@ -145,15 +148,15 @@ const CustomizerPanel = forwardRef<HTMLDivElement, DashboardCustomizerProps>(
         }}
       >
         <div className="dashboard-customize-heading">
-          <h2 id={titleId}>Dashboard cards</h2>
+          <h2 id={titleId}>{t("dashboardCards")}</h2>
           <span className="dashboard-customize-count">
-            {widgets.length - hidden.length} visible
+            {t("visibleCount", { count: widgets.length - hidden.length })}
           </span>
           <Popover.Close asChild>
             <button
               type="button"
               className="dashboard-customize-icon-button"
-              aria-label="Close customization"
+              aria-label={t("closeCustomization")}
             >
               <X size={14} />
             </button>
@@ -164,8 +167,8 @@ const CustomizerPanel = forwardRef<HTMLDivElement, DashboardCustomizerProps>(
           <input
             ref={searchRef}
             type="text"
-            aria-label="Find dashboard cards"
-            placeholder="Find a card…"
+            aria-label={t("findCards")}
+            placeholder={t("findCardPlaceholder")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
@@ -179,7 +182,7 @@ const CustomizerPanel = forwardRef<HTMLDivElement, DashboardCustomizerProps>(
             <button
               type="button"
               className="dashboard-customize-icon-button"
-              aria-label="Clear card search"
+              aria-label={t("clearCardSearch")}
               onClick={() => {
                 setQuery("");
                 searchRef.current?.focus();
@@ -233,14 +236,14 @@ const CustomizerPanel = forwardRef<HTMLDivElement, DashboardCustomizerProps>(
             />
             {matches.map((widget, index) => {
               const visible = !hidden.includes(widget.id);
-              const Icon = cardIcons[widget.label] ?? Gauge;
+              const Icon = cardIcons[widget.id] ?? Gauge;
               return (
                 <button
                   key={widget.id}
                   type="button"
                   role="switch"
                   aria-checked={visible}
-                  aria-label={`Show ${widget.label}`}
+                  aria-label={t("showCard", { label: widget.label })}
                   data-card-toggle
                   className="dashboard-customize-option"
                   style={{ "--option-index": Math.min(index, 7) } as CSSProperties}
@@ -261,26 +264,29 @@ const CustomizerPanel = forwardRef<HTMLDivElement, DashboardCustomizerProps>(
             {matches.length === 0 && (
               <div className="dashboard-customize-empty">
                 <SearchX size={22} aria-hidden="true" />
-                <p>No matching cards</p>
+                <p>{t("noMatchingCards")}</p>
                 <button type="button" onClick={() => setQuery("")}>
-                  Clear search
+                  {t("clearSearch")}
                 </button>
               </div>
             )}
           </div>
         </div>
         <div className="dashboard-customize-footer">
-          <button type="button" onClick={onRestore} aria-label="Restore default layout">
+          <button type="button" onClick={onRestore} aria-label={t("restoreDefaultLayout")}>
             <RotateCcw size={13} aria-hidden="true" />
-            Reset layout
+            {t("resetLayout")}
           </button>
           <button type="button" onClick={onShowAll} disabled={hidden.length === 0}>
-            Show all cards
+            {t("showAllCards")}
           </button>
         </div>
         <span role="status" className="sr-only">
-          {matches.length} {matches.length === 1 ? "card" : "cards"} found.{" "}
-          {widgets.length - hidden.length} of {widgets.length} visible.
+          {t("cardsFound", {
+            count: matches.length,
+            visible: widgets.length - hidden.length,
+            total: widgets.length,
+          })}
         </span>
       </Popover.Content>
     );

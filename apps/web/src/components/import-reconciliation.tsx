@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { ImportReview, ImportReviewOptions } from "@/lib/import-review";
 import { Button } from "@/components/ui/button";
 import { fmtMoney } from "@/lib/utils";
@@ -17,20 +18,18 @@ export function ImportReconciliation({
   onReview: () => void;
   busy: boolean;
 }) {
+  const t = useTranslations("import");
   return (
     <div className="space-y-3 border-t pt-3">
-      <p className="text-sm font-medium">Review NinjaTrader import</p>
-      <p className="text-xs text-muted-foreground">
-        Keep each source account separate inside your selected journal account. Review the result
-        before saving.
-      </p>
+      <p className="text-sm font-medium">{t("reviewNinjaTitle")}</p>
+      <p className="text-xs text-muted-foreground">{t("reviewNinjaHint")}</p>
       {review && (
         <>
           {review.sources.map((source) => (
             <label key={source.key} className="block space-y-1 text-sm">
               <span>{source.label}</span>
               <select
-                aria-label={`Source mapping for ${source.label}`}
+                aria-label={t("sourceMappingAria", { label: source.label })}
                 disabled={busy || source.saved}
                 className="block w-full rounded-md border bg-background p-2 text-sm"
                 value={options.sourceMappings?.[source.key] ?? source.selected ?? ""}
@@ -41,44 +40,51 @@ export function ImportReconciliation({
                   })
                 }
               >
-                <option value="">Choose the source this file belongs to</option>
+                <option value="">{t("chooseSource")}</option>
                 {review.savedSources.map((saved) => (
                   <option key={saved.id} value={saved.id}>
                     {saved.name}
                   </option>
                 ))}
-                <option value="new">Create a separate source account</option>
+                <option value="new">{t("createSeparateSource")}</option>
               </select>
             </label>
           ))}
-          <p className="text-xs text-muted-foreground">
-            If an account or connection was renamed, select its existing source. Choose a new source
-            only for a genuinely different account.
-          </p>
+          <p className="text-xs text-muted-foreground">{t("renameSourceHint")}</p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm" role="status">
-            <span>{review.inserted} new fills</span>
-            <span>{review.duplicates} duplicate fills</span>
-            <span>{review.corrections.length} fee corrections</span>
+            <span>{t("newFills", { count: review.inserted })}</span>
+            <span>{t("duplicateFills", { count: review.duplicates })}</span>
+            <span>{t("feeCorrections", { count: review.corrections.length })}</span>
           </div>
           {review.multipliers.map((item) => (
             <p key={item.symbol} className="text-xs">
-              {item.symbol} multiplier: {item.value ?? "missing — configure in Settings"}
+              {t("multiplierValue", {
+                symbol: item.symbol,
+                value: item.value ?? t("multiplierMissing"),
+              })}
             </p>
           ))}
           {review.multipliers.some((item) => item.value === null) && (
             <a className="text-sm underline" href="/settings" target="_blank" rel="noreferrer">
-              Open Settings, then review again
+              {t("openSettingsReview")}
             </a>
           )}
           {review.totals && (
             <div className="rounded-md bg-muted/40 p-3 text-sm">
-              <p className="font-medium">Destination account after import ({review.currency})</p>
-              <p>
-                {review.totals.closedTrades} closed trades · {review.totals.openTrades} open trades
+              <p className="font-medium">
+                {t("destinationAfterImport", { currency: review.currency })}
               </p>
               <p>
-                Closed-trade net P&amp;L: {fmtMoney(review.totals.netPnl, review.currency)} · Fees:{" "}
-                {fmtMoney(review.totals.fees, review.currency)}
+                {t("closedOpenTrades", {
+                  closed: review.totals.closedTrades,
+                  open: review.totals.openTrades,
+                })}
+              </p>
+              <p>
+                {t("closedNetPnlFees", {
+                  pnl: fmtMoney(review.totals.netPnl, review.currency),
+                  fees: fmtMoney(review.totals.fees, review.currency),
+                })}
               </p>
             </div>
           )}
@@ -92,24 +98,24 @@ export function ImportReconciliation({
                   onChange({ ...options, completeHistory: event.target.checked })
                 }
               />
-              <span>
-                This export includes every execution for each listed source contract between its
-                first and last timestamp. It is not a partial selection of repeated fills.
-              </span>
+              <span>{t("completeHistoryConfirm")}</span>
             </label>
           )}
           {!!review.corrections.length && (
             <div className="space-y-2">
               {review.corrections.slice(0, 10).map((correction, index) => (
                 <p key={index} className="text-xs">
-                  {correction.symbol} · {correction.executedAt}: commission{" "}
-                  {fmtMoney(correction.oldFee, review.currency)} →{" "}
-                  {fmtMoney(correction.newFee, review.currency)}
+                  {t("commissionCorrection", {
+                    symbol: correction.symbol,
+                    executedAt: correction.executedAt,
+                    oldFee: fmtMoney(correction.oldFee, review.currency),
+                    newFee: fmtMoney(correction.newFee, review.currency),
+                  })}
                 </p>
               ))}
               {review.corrections.length > 10 && (
                 <p className="text-xs">
-                  Plus {review.corrections.length - 10} more fee corrections.
+                  {t("plusMoreCorrections", { count: review.corrections.length - 10 })}
                 </p>
               )}
               <label className="flex items-start gap-2 text-sm">
@@ -121,10 +127,7 @@ export function ImportReconciliation({
                     onChange({ ...options, approveFeeCorrections: event.target.checked })
                   }
                 />
-                <span>
-                  Apply these commission corrections to the existing executions and recalculate
-                  P&amp;L.
-                </span>
+                <span>{t("approveFeeCorrections")}</span>
               </label>
             </div>
           )}
@@ -141,13 +144,10 @@ export function ImportReconciliation({
         </>
       )}
       <Button variant="outline" disabled={busy} onClick={onReview}>
-        {busy ? "Reviewing…" : "Review import"}
+        {busy ? t("reviewing") : t("reviewImport")}
       </Button>
       {review?.token && (
-        <p className="text-xs text-muted-foreground">
-          Review complete. Import will save this result; if the file, settings or journal changes,
-          another review is required.
-        </p>
+        <p className="text-xs text-muted-foreground">{t("reviewComplete")}</p>
       )}
     </div>
   );

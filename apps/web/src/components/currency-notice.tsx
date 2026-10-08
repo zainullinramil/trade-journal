@@ -1,15 +1,19 @@
+"use client";
+
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { TriangleAlert } from "lucide-react";
 import type { CurrencyScope } from "@/lib/currencies";
 import { Button } from "@/components/ui/button";
 
 export function CurrencyNotice({ scope }: { scope: CurrencyScope }) {
+  const t = useTranslations("currencyNotice");
   if (scope.converted)
     return (
       <p className="px-4 py-2 text-xs text-muted-foreground">
-        Trading P&amp;L in {scope.currency} · saved baseline conversion rates.{" "}
+        {t("converted", { currency: scope.currency ?? "" })}{" "}
         <Link className="underline" href="/settings#currency-conversion">
-          Edit rates
+          {t("editRates")}
         </Link>
       </p>
     );
@@ -25,18 +29,16 @@ export function CurrencyNotice({ scope }: { scope: CurrencyScope }) {
           className="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400"
         />
         <div className="space-y-1">
-          <p className="font-semibold text-amber-950 dark:text-amber-100">
-            Set up conversion to see your combined dashboard
-          </p>
+          <p className="font-semibold text-amber-950 dark:text-amber-100">{t("setupTitle")}</p>
           <p className="text-sm text-amber-900 dark:text-amber-200">
             {scope.missingCurrencies.length
-              ? `Save conversion rates for ${scope.missingCurrencies.join(", ")} to use the reporting currency. Amounts below remain in their original currencies.`
-              : `These accounts use ${scope.sourceCurrencies.join(", ")}. Set your conversion rates to combine their performance.`}
+              ? t("missingRates", { currencies: scope.missingCurrencies.join(", ") })
+              : t("sourceCurrencies", { currencies: scope.sourceCurrencies.join(", ") })}
           </p>
         </div>
       </div>
       <Button asChild className="shrink-0 self-start lg:self-auto">
-        <Link href="/settings#currency-conversion">Set up currency conversion</Link>
+        <Link href="/settings#currency-conversion">{t("setupButton")}</Link>
       </Button>
     </div>
   );

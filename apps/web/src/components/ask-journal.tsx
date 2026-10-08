@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,12 +12,6 @@ import { useFilters } from "./filter-bar";
 import { useAiRequest, type AiScope } from "@/lib/use-ai-request";
 import type { AnalysisFilters } from "@luxalgo/journal-core";
 
-const SUGGESTIONS = [
-  "What's my most expensive mistake?",
-  "Which weekday should I stop trading?",
-  "Am I better at longs or shorts?",
-];
-
 /** Natural-language questions against your own aggregates — BYO AI provider key. */
 export function AskJournal() {
   const { values, query, timeZone } = useFilters();
@@ -24,10 +19,12 @@ export function AskJournal() {
 }
 
 function ScopedAskJournal({ filters, timeZone }: { filters: AnalysisFilters; timeZone: string }) {
+  const t = useTranslations("reports");
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<{ answer: string; scope: AiScope } | null>(null);
   const { run, busy, error, dismiss } = useAiRequest();
   const [lastQuestion, setLastQuestion] = useState("");
+  const suggestions = [t("suggestion1"), t("suggestion2"), t("suggestion3")];
 
   const ask = async (q: string) => {
     if (busy || !q.trim()) return;
@@ -48,12 +45,10 @@ function ScopedAskJournal({ filters, timeZone }: { filters: AnalysisFilters; tim
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Ask your journal</CardTitle>
+        <CardTitle>{t("askTitle")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        <p className="text-xs text-muted-foreground">
-          Uses the selected accounts and journal filters. Changing filters clears the answer.
-        </p>
+        <p className="text-xs text-muted-foreground">{t("askHint")}</p>
         <form
           className="flex gap-2"
           onSubmit={(event) => {
@@ -62,18 +57,18 @@ function ScopedAskJournal({ filters, timeZone }: { filters: AnalysisFilters; tim
           }}
         >
           <Input
-            aria-label="Ask your journal a question"
+            aria-label={t("askAria")}
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
-            placeholder="Why do my Monday shorts keep failing?"
+            placeholder={t("askPlaceholder")}
           />
           <Button type="submit" disabled={busy || !question.trim()}>
             <Sparkles />
-            {busy ? "Thinking…" : "Ask"}
+            {busy ? t("thinking") : t("ask")}
           </Button>
         </form>
         <div className="flex flex-wrap gap-1.5">
-          {SUGGESTIONS.map((suggestion) => (
+          {suggestions.map((suggestion) => (
             <button
               key={suggestion}
               disabled={busy}

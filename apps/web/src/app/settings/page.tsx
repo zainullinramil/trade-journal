@@ -10,8 +10,10 @@ import {
   SlidersHorizontal,
   Sparkles,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { JournalDefaultSettings } from "@/components/journal-default-settings";
 import { ContractMultiplierSettings, TimeZoneSettings } from "@/components/journal-settings";
+import { LanguageSettings } from "@/components/language-settings";
 import { MarketDataSettings } from "@/components/market-data-settings";
 import { AiSettings } from "@/components/ai-settings";
 import { CurrencySettings } from "@/components/currency-settings";
@@ -22,51 +24,50 @@ import { Label } from "@/components/ui/label";
 import { OptionSelect } from "@/components/ui/option-select";
 import { cn } from "@/lib/utils";
 
-const sections = [
-  {
-    id: "general",
-    label: "General",
-    icon: Globe,
-    description: "Choose the timezones used to display and import your trades.",
-  },
+const SECTION_IDS = [
+  "general",
+  "trading",
+  "currency-conversion",
+  "market-data",
+  "ai-settings",
+  "your-data",
+] as const;
+type Section = (typeof SECTION_IDS)[number];
+
+const SECTION_META = [
+  { id: "general", labelKey: "general", descriptionKey: "generalDescription", icon: Globe },
   {
     id: "trading",
-    label: "Trading",
+    labelKey: "trading",
+    descriptionKey: "tradingDescription",
     icon: SlidersHorizontal,
-    description: "Manage contract multipliers, breakeven rules, fees, and risk defaults.",
   },
   {
     id: "currency-conversion",
-    label: "Currency conversion",
+    labelKey: "currencyConversion",
+    descriptionKey: "currencyConversionDescription",
     icon: ArrowLeftRight,
-    description: "Set a reporting currency and saved exchange rates for combined performance.",
   },
   {
     id: "market-data",
-    label: "Market data",
+    labelKey: "marketData",
+    descriptionKey: "marketDataDescription",
     icon: ChartCandlestick,
-    description: "Connect price history or upload candles for replay and trade analysis.",
   },
-  {
-    id: "ai-settings",
-    label: "AI",
-    icon: Sparkles,
-    description: "Choose your AI provider and manage your model and API key.",
-  },
+  { id: "ai-settings", labelKey: "ai", descriptionKey: "aiDescription", icon: Sparkles },
   {
     id: "your-data",
-    label: "Data & backups",
+    labelKey: "yourData",
+    descriptionKey: "yourDataDescription",
     icon: Database,
-    description: "Download your journal data for safekeeping or use in other tools.",
   },
 ] as const;
-type Section = (typeof sections)[number]["id"];
 
 function sectionForHash(hash: string): Section {
   const id = hash.replace(/^#/, "");
   if (id === "market-csv") return "market-data";
   if (id === "contract-multipliers" || id === "journal-defaults") return "trading";
-  return sections.find((section) => section.id === id)?.id ?? "general";
+  return SECTION_IDS.find((section) => section === id) ?? "general";
 }
 
 export default function SettingsPage() {
@@ -78,6 +79,7 @@ export default function SettingsPage() {
 }
 
 function Settings() {
+  const t = useTranslations("settings");
   const [active, setActive] = useState<Section>("general");
   const top = useRef<HTMLDivElement>(null);
 
@@ -101,16 +103,16 @@ function Settings() {
 
   return (
     <div>
-      <FilterBar title="Settings" />
+      <FilterBar title={t("title")} />
       <div
         ref={top}
         className="mx-auto grid max-w-5xl scroll-mt-20 gap-6 p-4 sm:p-6 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-8"
       >
         <nav
-          aria-label="Settings sections"
+          aria-label={t("sectionsNav")}
           className="hidden space-y-1 lg:sticky lg:top-20 lg:block lg:self-start"
         >
-          {sections.map(({ id, label, icon: Icon }) => (
+          {SECTION_META.map(({ id, labelKey, icon: Icon }) => (
             <a
               key={id}
               href={`#${id}`}
@@ -135,38 +137,43 @@ function Settings() {
               }}
             >
               <Icon aria-hidden="true" className="size-4 shrink-0" />
-              {label}
+              {t(labelKey)}
             </a>
           ))}
         </nav>
         <div className="space-y-2 lg:hidden">
           <Label htmlFor="settings-section" className="text-xs text-muted-foreground">
-            Settings section
+            {t("sectionPicker")}
           </Label>
           <OptionSelect
             id="settings-section"
             value={active}
             onValueChange={(value) => openSection(value as Section)}
           >
-            {sections.map(({ id, label }) => (
+            {SECTION_META.map(({ id, labelKey }) => (
               <option key={id} value={id}>
-                {label}
+                {t(labelKey)}
               </option>
             ))}
           </OptionSelect>
         </div>
         <div className="min-w-0">
-          {sections.map(({ id, label, description }) => (
+          {SECTION_META.map(({ id, labelKey, descriptionKey }) => (
             // Keep panels mounted so changing sections preserves unsaved form drafts.
             <section key={id} hidden={active !== id} aria-labelledby={`settings-heading-${id}`}>
               <div className="mb-5 space-y-1.5">
                 <h2 id={`settings-heading-${id}`} className="text-xl font-semibold tracking-tight">
-                  {label}
+                  {t(labelKey)}
                 </h2>
-                <p className="text-sm text-muted-foreground">{description}</p>
+                <p className="text-sm text-muted-foreground">{t(descriptionKey)}</p>
               </div>
               <div className="space-y-4">
-                {id === "general" && <TimeZoneSettings />}
+                {id === "general" && (
+                  <>
+                    <LanguageSettings />
+                    <TimeZoneSettings />
+                  </>
+                )}
                 {id === "trading" && (
                   <>
                     <ContractMultiplierSettings />
@@ -179,23 +186,21 @@ function Settings() {
                 {id === "your-data" && (
                   <Card>
                     <CardHeader>
-                      <CardTitle>Export your data</CardTitle>
+                      <CardTitle>{t("exportTitle")}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <p className="text-sm text-muted-foreground">
-                        Save a full journal backup, or export your trades as a CSV.
-                      </p>
+                      <p className="text-sm text-muted-foreground">{t("exportDescription")}</p>
                       <div className="flex flex-wrap gap-2">
                         <Button variant="outline" asChild>
                           <a href="/api/export" download="trade-journal-export.json">
                             <Download aria-hidden="true" />
-                            Full backup (JSON)
+                            {t("fullBackup")}
                           </a>
                         </Button>
                         <Button variant="outline" asChild>
                           <a href="/api/export?format=csv" download>
                             <Download aria-hidden="true" />
-                            Trades (CSV)
+                            {t("tradesCsv")}
                           </a>
                         </Button>
                       </div>

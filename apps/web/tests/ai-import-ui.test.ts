@@ -27,6 +27,14 @@ vi.mock("@/lib/use-api", () => ({
             aiConnections: {
               openai: { configured: state.configured, model: "gpt-4.1-mini", source: "saved" },
               anthropic: { configured: false, model: "claude-opus-5", source: null },
+              openrouter: { configured: false, model: "openai/gpt-4o-mini", source: null },
+              lmstudio: {
+                configured: false,
+                model: "local-model",
+                source: null,
+                baseUrl: "http://127.0.0.1:1234/v1",
+                baseUrlSource: "default",
+              },
             },
           }
         : { formats: [] },

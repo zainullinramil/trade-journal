@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { EChartsOption } from "echarts";
@@ -30,6 +31,7 @@ export function TimeHeatmap({
   currency?: string;
 }) {
   const t = useVizTokens();
+  const tc = useTranslations("charts");
   const privateMode = usePrivacy();
   const host = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -94,7 +96,7 @@ export function TimeHeatmap({
         {
           type: "value",
           gridIndex: 0,
-          name: privateMode ? "Net P&L (hidden)" : `Net P&L (${currency})`,
+          name: privateMode ? tc("netPnlHidden") : tc("netPnlCurrency", { currency }),
           nameTextStyle: { color: t.inkMuted, fontSize: 11 },
           splitLine: { lineStyle: { color: t.gridline } },
           axisLabel: {
@@ -106,7 +108,7 @@ export function TimeHeatmap({
         {
           type: "value",
           gridIndex: 1,
-          name: "Trades",
+          name: tc("trades"),
           nameTextStyle: { color: t.inkMuted, fontSize: 11 },
           splitLine: { show: false },
           axisLabel: { color: t.inkMuted, fontSize: 11 },
@@ -115,9 +117,9 @@ export function TimeHeatmap({
       series: [
         {
           type: "bar",
-          name: "Net P&L",
+          name: tc("netPnl"),
           tooltip: {
-            valueFormatter: (value) => (privateMode ? "Hidden" : fmtMoney(Number(value), currency)),
+            valueFormatter: (value) => (privateMode ? tc("hidden") : fmtMoney(Number(value), currency)),
           },
           xAxisIndex: 0,
           yAxisIndex: 0,
@@ -132,7 +134,7 @@ export function TimeHeatmap({
         },
         {
           type: "line",
-          name: "Trades",
+          name: tc("trades"),
           tooltip: { valueFormatter: (value) => fmtNumber(Number(value), 0) },
           xAxisIndex: 1,
           yAxisIndex: 1,
@@ -143,7 +145,7 @@ export function TimeHeatmap({
         },
       ],
     };
-  }, [hours, t, privateMode, currency]);
+  }, [hours, t, tc, privateMode, currency]);
 
   return (
     <div ref={host} style={{ height }}>

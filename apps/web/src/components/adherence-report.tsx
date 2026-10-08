@@ -1,4 +1,5 @@
 "use client";
+import { useTranslations } from "next-intl";
 import { useApi } from "@/lib/use-api";
 import { useFilters } from "@/components/filter-bar";
 import { MonetaryValue } from "./privacy";
@@ -23,6 +24,7 @@ interface Adherence {
 }
 const pct = (n: number | null) => (n === null ? "-" : `${Math.round(n * 100)}%`);
 export function AdherenceReport({ bookId }: { bookId: string }) {
+  const t = useTranslations("playbooks");
   const { query } = useFilters();
   const { data, error } = useApi<{ books: Adherence[] }>(`/api/adherence?${query}`);
   const b = data?.books.find((b) => b.id === bookId);
@@ -36,24 +38,31 @@ export function AdherenceReport({ bookId }: { bookId: string }) {
   return (
     <div className="space-y-3 border-t pt-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">Rule adherence</span>
+        <span className="text-xs text-muted-foreground">{t("adherenceTitle")}</span>
         <strong className="text-lg">{pct(b.rate)}</strong>
       </div>
       <p className="text-xs text-muted-foreground">
-        {b.evaluated}/{b.possible} rule assessments across {b.total} filtered closed trades.{" "}
-        {b.unassessed} trades still need assessment.
+        {t("adherenceSummary", {
+          evaluated: b.evaluated,
+          possible: b.possible,
+          total: b.total,
+          unassessed: b.unassessed,
+        })}
       </p>
       <div className="grid grid-cols-2 gap-3 text-xs">
         {[
-          ["All rules followed", b.followed],
-          ["At least one broken", b.broken],
+          [t("allRulesFollowed"), b.followed],
+          [t("atLeastOneBroken"), b.broken],
         ].map(([title, stats]) => {
           const s = stats as GroupSummary;
           return (
             <div key={String(title)} className="rounded-md bg-muted/40 p-2">
               <p className="mb-1 font-medium">{String(title)}</p>
               <p>
-                {s.trades} trades · {pct(s.winRate)} win
+                {t("tradesWin", {
+                  trades: s.trades,
+                  winRate: pct(s.winRate),
+                })}
               </p>
               {b.currencies.length <= 1 && (
                 <p className={s.netPnl >= 0 ? "text-profit" : "text-loss"}>
@@ -68,26 +77,37 @@ export function AdherenceReport({ bookId }: { bookId: string }) {
         })}
       </div>
       {b.currencies.length > 1 && (
-        <p className="text-xs text-muted-foreground">P&L hidden for mixed currencies.</p>
+        <p className="text-xs text-muted-foreground">{t("pnlHidden")}</p>
       )}
       <details className="text-xs">
-        <summary className="cursor-pointer text-muted-foreground">Performance by rule</summary>
+        <summary className="cursor-pointer text-muted-foreground">{t("performanceByRule")}</summary>
         <div className="mt-2 space-y-3">
           {b.rules.map((r) => (
             <div key={r.rule} className="border-t pt-2">
               <p className="font-medium">{r.rule}</p>
               <p className="text-muted-foreground">
-                {pct(r.rate)} followed · {r.evaluated} assessments
+                {t("ruleFollowed", {
+                  rate: pct(r.rate),
+                  evaluated: r.evaluated,
+                })}
               </p>
               <p>
-                Followed: {r.followed.trades} trades / {pct(r.followed.winRate)} win · Broken:{" "}
-                {r.broken.trades} / {pct(r.broken.winRate)} win
+                {t("followedBroken", {
+                  followedTrades: r.followed.trades,
+                  followedWin: pct(r.followed.winRate),
+                  brokenTrades: r.broken.trades,
+                  brokenWin: pct(r.broken.winRate),
+                })}
               </p>
               {b.currencies.length <= 1 && (
                 <p>
-                  Net P&L: <MonetaryValue>{r.followed.netPnl.toFixed(2)}</MonetaryValue> followed /{" "}
-                  <MonetaryValue>{r.broken.netPnl.toFixed(2)}</MonetaryValue> broken{" "}
-                  {b.currencies[0] ?? ""}
+                  {t.rich("netPnl", {
+                    followed: () => (
+                      <MonetaryValue>{r.followed.netPnl.toFixed(2)}</MonetaryValue>
+                    ),
+                    broken: () => <MonetaryValue>{r.broken.netPnl.toFixed(2)}</MonetaryValue>,
+                    currency: b.currencies[0] ?? "",
+                  })}
                 </p>
               )}
             </div>

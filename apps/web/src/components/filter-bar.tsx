@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { dayKeyOf, FILTER_KEYS, readFilters, type AnalysisFilters } from "@luxalgo/journal-core";
 import { useApi } from "@/lib/use-api";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ export const useFilters = () => {
 };
 export type Filters = ReturnType<typeof useFilters>;
 export function FilterBar({ title, actions }: { title: string; actions?: React.ReactNode }) {
+  const t = useTranslations("filters");
   const router = useRouter(),
     pathname = usePathname(),
     params = useSearchParams();
@@ -85,21 +87,21 @@ export function FilterBar({ title, actions }: { title: string; actions?: React.R
                     router.replace(`${pathname}?${next}`);
                   }}
                 >
-                  {range === "all" ? "All" : range.toUpperCase()}
+                  {range === "all" ? t("all") : range.toUpperCase()}
                 </Button>
               ))}
             </div>
             <Button
               variant="outline"
               size="sm"
-              title="Filter by dates, symbols, strategy, outcome, and more. All selected conditions must match."
+              title={t("tooltip")}
               onClick={() => {
                 setDraft(filters.values);
                 setOpen(true);
               }}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
-              Filters{count > 0 ? ` · ${count}` : ""}
+              {count > 0 ? t("buttonCount", { count }) : t("button")}
             </Button>
           </>
         )}
@@ -119,11 +121,10 @@ export function FilterBar({ title, actions }: { title: string; actions?: React.R
         >
           <DialogHeader className="journal-filter-heading">
             <DialogTitle ref={filterTitle} tabIndex={-1} className="outline-none">
-              Filter your journal
+              {t("dialogTitle")}
             </DialogTitle>
             <DialogDescription className="journal-filter-description">
-              Times use {filters.timeZone}. Dates use the closing day, or opening day for open
-              trades. All selected conditions must match.
+              {t("dialogDescription", { timeZone: filters.timeZone })}
             </DialogDescription>
           </DialogHeader>
           <div className="journal-filter-body">
@@ -135,10 +136,10 @@ export function FilterBar({ title, actions }: { title: string; actions?: React.R
               className="text-muted-foreground hover:text-foreground"
               onClick={() => setDraft({})}
             >
-              Clear filters
+              {t("clear")}
             </Button>
             <Button className="min-w-28" onClick={apply}>
-              Apply filters
+              {t("apply")}
             </Button>
           </div>
         </DialogContent>

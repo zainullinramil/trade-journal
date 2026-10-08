@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { FlaskConical, Settings2, WalletCards } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "./ui/select";
 import { postJson, useApi } from "@/lib/use-api";
@@ -15,6 +16,8 @@ interface AccountOption {
 
 /** Quick account switching; the full Filters panel still supports multiple accounts. */
 export function AccountSelector() {
+  const t = useTranslations("filters");
+  const tCommon = useTranslations("common");
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -27,9 +30,9 @@ export function AccountSelector() {
   const value = selected.length > 1 ? "multiple" : (selected[0] ?? "all");
   const label =
     selected.length > 1
-      ? `${selected.length} accounts`
+      ? t("accountsCount", { count: selected.length })
       : (accounts.find((a) => a.id === selected[0])?.name ??
-        (selected.length ? "Selected account" : "All accounts"));
+        (selected.length ? t("selectedAccount") : t("allAccounts")));
 
   function selectAccount(id: string) {
     const next = new URLSearchParams(params.toString());
@@ -51,7 +54,7 @@ export function AccountSelector() {
       refresh();
       selectAccount(result.accountId);
     } catch (cause) {
-      setDemoError(cause instanceof Error ? cause.message : "Could not load demo data.");
+      setDemoError(cause instanceof Error ? cause.message : t("demoLoadFailed"));
     } finally {
       setLoadingDemo(false);
     }
@@ -61,17 +64,17 @@ export function AccountSelector() {
     <div className="relative min-w-0 max-w-full">
       <Select value={value} onValueChange={(value) => void select(value)} disabled={loadingDemo}>
         <SelectTrigger
-          aria-label="Select account"
+          aria-label={t("selectAccount")}
           className="h-8 w-44 max-w-full rounded-lg text-xs"
         >
           <WalletCards className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1 truncate text-left">
-            {loadingDemo ? "Loading demo…" : label}
+            {loadingDemo ? t("loadingDemo") : label}
           </span>
         </SelectTrigger>
         <SelectContent className="rounded-2xl border-white/10 p-1 shadow-2xl" align="end">
           <SelectItem value="all" className="rounded-lg text-xs">
-            All accounts
+            {t("allAccounts")}
           </SelectItem>
           {selected.length > 1 && (
             <SelectItem value="multiple" disabled className="text-xs">
@@ -84,7 +87,7 @@ export function AccountSelector() {
               <SelectItem key={account.id} value={account.id} className="rounded-lg text-xs">
                 <span className="block max-w-64 truncate">
                   {account.name}
-                  {account.archivedAt ? " (archived)" : ""}
+                  {account.archivedAt ? ` (${tCommon("archived")})` : ""}
                 </span>
               </SelectItem>
             ))}
@@ -92,14 +95,14 @@ export function AccountSelector() {
           <SelectItem value={demo?.id ?? "load-demo"} className="rounded-lg text-xs">
             <span className="flex items-center gap-2">
               <FlaskConical className="h-3.5 w-3.5 text-muted-foreground" />
-              {demo?.name ?? "Load demo data"}
+              {demo?.name ?? t("loadDemo")}
             </span>
           </SelectItem>
           <div className="my-1 border-t" />
           <SelectItem value="account-settings" className="rounded-lg text-xs">
             <span className="flex items-center gap-2">
               <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
-              Account settings
+              {t("accountSettings")}
             </span>
           </SelectItem>
         </SelectContent>

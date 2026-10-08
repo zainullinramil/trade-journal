@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Download, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -17,6 +18,7 @@ export function ReviewExport({
   document: ReviewDocument;
   containsFinancialData?: boolean;
 }) {
+  const t = useTranslations("export");
   const privateMode = usePrivacy();
   const concealed = privateMode && containsFinancialData;
   const [busy, setBusy] = useState(false),
@@ -47,7 +49,7 @@ export function ReviewExport({
       setPreviewDocument(document);
       setOpen(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Export failed.");
+      setError(e instanceof Error ? e.message : t("failed"));
     } finally {
       setBusy(false);
     }
@@ -63,7 +65,7 @@ export function ReviewExport({
           onClick={() => void run(false)}
         >
           <Download />
-          Export PDF
+          {t("pdf")}
         </Button>
         <Button
           type="button"
@@ -73,14 +75,10 @@ export function ReviewExport({
           onClick={() => void run(true)}
         >
           <ImageIcon />
-          Export PNG
+          {t("png")}
         </Button>
       </div>
-      {concealed && (
-        <p className="text-xs text-muted-foreground">
-          Turn off privacy mode to export financial figures.
-        </p>
-      )}
+      {concealed && <p className="text-xs text-muted-foreground">{t("privacyBlocked")}</p>}
       {error && (
         <p role="alert" className="text-xs text-destructive">
           {error}
@@ -89,32 +87,38 @@ export function ReviewExport({
       <Dialog open={open && !concealed} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Review export</DialogTitle>
+            <DialogTitle>{t("reviewTitle")}</DialogTitle>
           </DialogHeader>
-          {files.map((f, i) => (
-            <div key={f.url} className="space-y-3">
-              <Button asChild size="sm">
-                <a href={f.url} download={f.filename}>
-                  Download {f.type === "application/pdf" ? "PDF" : "PNG"}
-                  {files.length > 1 ? ` · ${i + 1}/${files.length}` : ""}
-                </a>
-              </Button>
-              {f.type === "application/pdf" ? (
-                <div className="rounded border bg-white p-6 text-slate-800">
-                  <p className="mb-4 text-xs text-slate-500">
-                    Review text · download the PDF for the paginated document.
-                  </p>
-                  <h3 className="mb-2 text-xl font-semibold">{previewDocument?.title}</h3>
-                  <p className="mb-6 text-xs text-slate-500">{previewDocument?.subtitle}</p>
-                  <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-                    {previewDocument?.lines.join("\n")}
+          {files.map((f, i) => {
+            const format = f.type === "application/pdf" ? "PDF" : "PNG";
+            const downloadLabel =
+              files.length > 1
+                ? t("downloadPage", { format, current: i + 1, total: files.length })
+                : format === "PDF"
+                  ? t("downloadPdf")
+                  : t("downloadPng");
+            return (
+              <div key={f.url} className="space-y-3">
+                <Button asChild size="sm">
+                  <a href={f.url} download={f.filename}>
+                    {downloadLabel}
+                  </a>
+                </Button>
+                {f.type === "application/pdf" ? (
+                  <div className="rounded border bg-white p-6 text-slate-800">
+                    <p className="mb-4 text-xs text-slate-500">{t("pdfPreviewHint")}</p>
+                    <h3 className="mb-2 text-xl font-semibold">{previewDocument?.title}</h3>
+                    <p className="mb-6 text-xs text-slate-500">{previewDocument?.subtitle}</p>
+                    <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                      {previewDocument?.lines.join("\n")}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <img src={f.url} alt="Exported journal review" className="w-full rounded border" />
-              )}
-            </div>
-          ))}
+                ) : (
+                  <img src={f.url} alt={t("imageAlt")} className="w-full rounded border" />
+                )}
+              </div>
+            );
+          })}
         </DialogContent>
       </Dialog>
     </div>

@@ -2,6 +2,7 @@
 import { OptionSelect } from "@/components/ui/option-select";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useApi, postJson } from "@/lib/use-api";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { fieldClass } from "@/components/filter-fields";
@@ -12,6 +13,7 @@ export function RuleChecklist({
   tradeKey: string;
   playbookId: string | null;
 }) {
+  const t = useTranslations("tradeDetail.rules");
   const url = `/api/trades/${encodeURIComponent(tradeKey)}/rules`;
   const { data, error, refresh } = useApi<{
       name: string | null;
@@ -23,7 +25,7 @@ export function RuleChecklist({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Strategy rule review</CardTitle>
+        <CardTitle>{t("title")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {data?.name ? (
@@ -31,14 +33,14 @@ export function RuleChecklist({
             <p className="text-sm font-medium">{data.name}</p>
             <p className="text-xs text-muted-foreground">
               {evaluated.length
-                ? `${Math.round((followed / evaluated.length) * 100)}% followed · `
+                ? t("followedPct", {
+                    pct: Math.round((followed / evaluated.length) * 100),
+                  })
                 : ""}
-              {evaluated.length}/{data.rules.length} rules assessed
+              {t("assessed", { done: evaluated.length, total: data.rules.length })}
             </p>
             {data.rules.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                Add rules to this playbook to review adherence.
-              </p>
+              <p className="text-xs text-muted-foreground">{t("addRules")}</p>
             )}
             {data.rules.map((r) => (
               <label
@@ -63,17 +65,15 @@ export function RuleChecklist({
                     }
                   }}
                 >
-                  <option value="unreviewed">Not assessed</option>
-                  <option value="true">Followed</option>
-                  <option value="false">Broken</option>
+                  <option value="unreviewed">{t("notAssessed")}</option>
+                  <option value="true">{t("followed")}</option>
+                  <option value="false">{t("broken")}</option>
                 </OptionSelect>
               </label>
             ))}
           </>
         ) : (
-          <p className="text-xs text-muted-foreground">
-            Assign a playbook to check its rules for this trade.
-          </p>
+          <p className="text-xs text-muted-foreground">{t("assignPlaybook")}</p>
         )}
         {(error || failure) && (
           <p role="alert" className="text-xs text-destructive">

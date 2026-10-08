@@ -11,4 +11,9 @@ services:
       # Optional: stable encryption secret for broker credentials at rest
       # JOURNAL_SECRET: change-me-too
       JOURNAL_DATA_DIR: /data
+      # LM Studio on the host (127.0.0.1 inside the container is not your Mac):
+      # LM_STUDIO_BASE_URL: http://host.docker.internal:1234/v1
+      # LM_STUDIO_API_KEY: your-lm-studio-token
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped

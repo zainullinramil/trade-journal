@@ -1,15 +1,14 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createOpenAI } from "@ai-sdk/openai";
 import { APICallError, RetryError, generateText } from "ai";
-import { getAiKey, getAiModel, getAiProvider } from "./settings";
 import { AI_PROVIDER_NAMES } from "@/lib/ai-settings";
+import { languageModel, openAiStoreDisabled } from "./ai-model";
+import { getAiKey, getAiProvider, isAiProviderConfigured } from "./settings";
 
 /**
  * BYO-key AI. Self-hosted means YOUR key on YOUR box: the key is read from the
  * encrypted settings store (or the selected provider's environment variable).
  * Requests go straight from this server to the selected provider.
  */
-export const aiConfigured = (): boolean => getAiKey(getAiProvider()) !== null;
+export const aiConfigured = (): boolean => isAiProviderConfigured(getAiProvider());
 
 const SYSTEM = `You are the reflection layer of a trader's journal.
 You see only the trader's own recorded data — trades, stats, and notes. Ground every
@@ -21,19 +20,17 @@ the trader knows. Keep it tight.`;
 export const runAi = async (prompt: string, maxOutputTokens = 1200): Promise<string> => {
   const provider = getAiProvider();
   const apiKey = getAiKey(provider);
-  if (!apiKey) {
+  if (!isAiProviderConfigured(provider)) {
     throw new Error(
-      `AI is not configured — add your ${AI_PROVIDER_NAMES[provider]} API key in Settings.`,
+      provider === "lmstudio" && apiKey
+        ? "AI is not configured — set your LM Studio base URL in Settings."
+        : `AI is not configured — add your ${AI_PROVIDER_NAMES[provider]} API key in Settings.`,
     );
   }
-  const model = getAiModel(provider);
   try {
     const result = await generateText({
-      model:
-        provider === "openai"
-          ? createOpenAI({ apiKey }).responses(model)
-          : createAnthropic({ apiKey })(model),
-      ...(provider === "openai" ? { providerOptions: { openai: { store: false } } } : {}),
+      model: languageModel(provider, apiKey!),
+      ...(openAiStoreDisabled(provider) ? { providerOptions: { openai: { store: false } } } : {}),
       system: SYSTEM,
       prompt,
       maxOutputTokens,

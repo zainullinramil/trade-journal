@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { Suspense, useState } from "react";
 import { Archive, ArchiveRestore, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { AccountCreateForm } from "@/components/account-create-form";
@@ -50,9 +52,17 @@ export default function AccountsPage() {
 }
 
 function Accounts() {
+  const t = useTranslations("accounts");
+  const tSetup = useTranslations("navSetup");
   const { data, refresh } = useApi<{ accounts: AccountRow[] }>("/api/accounts");
   const [syncing, setSyncing] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+
+  const kindLabel = (kind: AccountRow["kind"]) => {
+    if (kind === "sync") return t("kindSync");
+    if (kind === "import") return t("kindImport");
+    return t("kindManual");
+  };
 
   const action = async <T = unknown,>(id: string, body: Record<string, unknown>) => {
     const result = await postJson<T>(`/api/accounts/${id}/actions`, body);
@@ -68,10 +78,14 @@ function Accounts() {
       }>(id, { action: "sync" });
       if (outcome.skipped > 0)
         alert(
-          `Sync finished with ${outcome.inserted} new fills. ${outcome.skipped} broker record(s) were skipped: ${outcome.skippedReasons.join(" ")}`,
+          t("syncSkipped", {
+            inserted: outcome.inserted,
+            skipped: outcome.skipped,
+            reasons: outcome.skippedReasons.join(" "),
+          }),
         );
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Sync failed");
+      alert(error instanceof Error ? error.message : t("syncFailed"));
     } finally {
       setSyncing(null);
     }
@@ -80,21 +94,19 @@ function Accounts() {
   return (
     <div>
       <FilterBar
-        title="Accounts"
+        title={tSetup("accounts")}
         actions={
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus />
-            New account
+            {t("newAccount")}
           </Button>
         }
       />
       <Dialog open={creating} onOpenChange={setCreating}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>New account</DialogTitle>
-            <DialogDescription>
-              Create an account for manual trades or file imports.
-            </DialogDescription>
+            <DialogTitle>{t("newAccount")}</DialogTitle>
+            <DialogDescription>{t("newAccountDescription")}</DialogDescription>
           </DialogHeader>
           <AccountCreateForm
             showTitle={false}
@@ -108,7 +120,7 @@ function Accounts() {
       <div className="grid gap-3 p-4 md:grid-cols-2">
         {data?.accounts.length === 0 && (
           <p className="col-span-full py-16 text-center text-sm text-muted-foreground">
-            No accounts yet — use New account to create your first one.
+            {t("empty")}
           </p>
         )}
         {data?.accounts.map((account) => (
@@ -117,7 +129,7 @@ function Accounts() {
               <CardTitle className="min-w-0 flex-1 text-base font-semibold normal-case tracking-normal text-foreground">
                 <span className="block break-words">{account.name}</span>
                 <Badge variant="secondary" className="mt-1.5 mr-2">
-                  {account.kind}
+                  {kindLabel(account.kind)}
                 </Badge>
                 {account.broker && (
                   <span className="text-xs font-normal text-muted-foreground">
@@ -133,7 +145,7 @@ function Accounts() {
                     className="h-8 w-8"
                     disabled={syncing === account.id}
                     onClick={() => void sync(account.id)}
-                    title="Sync now"
+                    title={t("syncNow")}
                   >
                     <RefreshCw className={syncing === account.id ? "animate-spin" : undefined} />
                   </Button>
@@ -142,7 +154,7 @@ function Accounts() {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  title={account.archivedAt ? "Unarchive" : "Archive"}
+                  title={account.archivedAt ? t("unarchive") : t("archive")}
                   onClick={() =>
                     void action(account.id, {
                       action: account.archivedAt ? "unarchive" : "archive",
@@ -155,11 +167,9 @@ function Accounts() {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  title="Delete account"
+                  title={t("deleteAccount")}
                   onClick={async () => {
-                    if (
-                      confirm(`Delete "${account.name}" and ALL its trades? This cannot be undone.`)
-                    ) {
+                    if (confirm(t("deleteConfirm", { name: account.name }))) {
                       await postJson(`/api/accounts/${account.id}`, undefined, "DELETE");
                       refresh();
                     }
@@ -172,20 +182,22 @@ function Accounts() {
             <CardContent className="space-y-3">
               {account.snapshot && (
                 <div className="text-sm">
-                  Broker equity:{" "}
+                  {t("brokerEquity")}{" "}
                   <span className="tnum font-medium">
                     <MonetaryValue>{fmtMoney(account.snapshot.equity)}</MonetaryValue>
                   </span>
                   <span className="ml-2 text-xs text-muted-foreground">
-                    {account.snapshot.positions.length} open positions · synced{" "}
-                    {account.lastSyncAt?.slice(0, 16).replace("T", " ")}
+                    {t("openPositionsSynced", {
+                      count: account.snapshot.positions.length,
+                      when: account.lastSyncAt?.slice(0, 16).replace("T", " ") ?? "",
+                    })}
                   </span>
                 </div>
               )}
               <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
                 <div className="min-w-0">
                   <label className="mb-1 block text-xs text-muted-foreground">
-                    Initial balance (anchors drawdown %)
+                    {t("initialBalance")}
                   </label>
                   <MonetaryField>
                     <Input
@@ -208,7 +220,7 @@ function Accounts() {
                 </div>
                 <div className="min-w-0">
                   <label className="mb-1 block text-xs text-muted-foreground">
-                    Profit calculation
+                    {t("profitCalculation")}
                   </label>
                   <Select
                     value={account.profitCalcMethod}
@@ -225,9 +237,9 @@ function Accounts() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="fifo">FIFO</SelectItem>
-                      <SelectItem value="lifo">LIFO</SelectItem>
-                      <SelectItem value="wavg">Weighted average</SelectItem>
+                      <SelectItem value="fifo">{t("fifo")}</SelectItem>
+                      <SelectItem value="lifo">{t("lifo")}</SelectItem>
+                      <SelectItem value="wavg">{t("wavg")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -237,33 +249,37 @@ function Accounts() {
                   variant="outline"
                   size="sm"
                   onClick={async () => {
-                    if (confirm(`Clear ALL trades from "${account.name}"? The account stays.`)) {
+                    if (confirm(t("clearConfirm", { name: account.name }))) {
                       await action(account.id, { action: "clear" });
                     }
                   }}
                 >
-                  Clear trades
+                  {t("clearTrades")}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={async () => {
                     const others = data.accounts.filter((candidate) => candidate.id !== account.id);
-                    if (others.length === 0) return alert("No other account to transfer into.");
+                    if (others.length === 0) return alert(t("noTransferTarget"));
                     const target = prompt(
-                      `Transfer all data into which account?\n${others.map((candidate, index) => `${index + 1}. ${candidate.name}`).join("\n")}\n\nEnter a number:`,
+                      t("transferPrompt", {
+                        list: others
+                          .map((candidate, index) => `${index + 1}. ${candidate.name}`)
+                          .join("\n"),
+                      }),
                     );
                     const chosen = others[Number(target) - 1];
                     if (chosen) {
                       try {
                         await action(account.id, { action: "transfer", toAccountId: chosen.id });
                       } catch (error) {
-                        alert(error instanceof Error ? error.message : "Transfer failed");
+                        alert(error instanceof Error ? error.message : t("transferFailed"));
                       }
                     }
                   }}
                 >
-                  Transfer data
+                  {t("transferData")}
                 </Button>
               </div>
             </CardContent>

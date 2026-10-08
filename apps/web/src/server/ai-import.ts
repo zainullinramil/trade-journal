@@ -1,6 +1,4 @@
 import { createHash } from "node:crypto";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createAnthropic } from "@ai-sdk/anthropic";
 import { generateText, jsonSchema, Output, type UserContent } from "ai";
 import {
   parseTimestamp,
@@ -14,8 +12,9 @@ import {
   type AiImportOptions,
 } from "@/lib/ai-import";
 import { isAiProvider } from "@/lib/ai-settings";
-import { requireValue } from "./api";
-import { getAiKey } from "./settings";
+import { RequestError, requireValue } from "./api";
+import { languageModel, openAiStoreDisabled } from "./ai-model";
+import { getAiKey, getLmStudioBaseUrl } from "./settings";
 import { encryptJson, decryptJson } from "./crypto";
 import { executionHash } from "./ids";
 import { executionProblem } from "./executions";
@@ -172,7 +171,7 @@ export async function parseStatementWithAi(
   options: AiImportOptions,
   signal?: AbortSignal,
 ) {
-  requireValue(options && isAiProvider(options.provider), "Choose OpenAI or Anthropic.");
+  requireValue(options && isAiProvider(options.provider), "Choose a supported AI provider.");
   requireValue(
     typeof options.model === "string" &&
       options.model.trim().length > 0 &&
@@ -187,6 +186,9 @@ export async function parseStatementWithAi(
   );
   const apiKey = options.apiKey?.trim() || getAiKey(options.provider);
   requireValue(apiKey, "Add an API key for the selected provider to parse this upload.");
+  if (options.provider === "lmstudio") {
+    requireValue(getLmStudioBaseUrl().trim(), "Configure your LM Studio base URL in Settings.");
+  }
   let input: UserContent;
   if (statement.encoding === "pdf") {
     requireValue(
@@ -211,11 +213,10 @@ export async function parseStatementWithAi(
   let output: unknown;
   try {
     const result = await generateText({
-      model:
-        options.provider === "openai"
-          ? createOpenAI({ apiKey }).responses(options.model)
-          : createAnthropic({ apiKey })(options.model),
-      ...(options.provider === "openai" ? { providerOptions: { openai: { store: false } } } : {}),
+      model: languageModel(options.provider, apiKey!, options.model),
+      ...(openAiStoreDisabled(options.provider)
+        ? { providerOptions: { openai: { store: false } } }
+        : {}),
       system: SYSTEM,
       messages: [
         {
@@ -241,8 +242,18 @@ export async function parseStatementWithAi(
       "AI response was incomplete. Split the statement into smaller files.",
     );
     output = result.output;
-  } catch {
-    throw new Error(
+  } catch (error) {
+    if (error instanceof RequestError) throw error;
+    const detail = error instanceof Error ? error.message : "";
+    if (
+      options.provider === "lmstudio" &&
+      /ECONNREFUSED|ENOTFOUND|fetch failed|network|connect/i.test(detail)
+    ) {
+      throw new RequestError(
+        `Cannot reach LM Studio at ${getLmStudioBaseUrl()}. If the journal runs in Docker, use http://host.docker.internal:1234/v1 instead of 127.0.0.1, and confirm the local server is running.`,
+      );
+    }
+    throw new RequestError(
       "AI parsing failed or returned an incomplete response. Check your key, model, provider credits and file size, then try again. PDF uploads require a model that accepts PDFs.",
     );
   }

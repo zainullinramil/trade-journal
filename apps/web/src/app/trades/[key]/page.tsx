@@ -2,7 +2,8 @@
 import { AiNotice } from "@/components/ai-notice";
 import { Checkbox } from "@/components/ui/checkbox";
 
-import { use, useEffect, useMemo, useRef, useState } from "react";
+import { use, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Sparkles } from "lucide-react";
 import { netReturnOnEntry } from "@luxalgo/journal-core";
 import { FilterBar } from "@/components/filter-bar";
@@ -91,6 +92,7 @@ export default function TradePage({ params }: { params: Promise<{ key: string }>
 }
 
 function TradeView({ tradeKey }: { tradeKey: string }) {
+  const t = useTranslations("tradeDetail");
   const { data, error, refresh } = useApi<{
     trade: TradeDetail;
     executions: ExecutionRow[];
@@ -103,7 +105,7 @@ function TradeView({ tradeKey }: { tradeKey: string }) {
   if (!data) {
     return (
       <div>
-        <FilterBar title="Trade" />
+        <FilterBar title={t("title")} />
         <div className="p-4">
           {error ? (
             <p role="alert" className="text-sm text-destructive">
@@ -152,13 +154,11 @@ function TradeView({ tradeKey }: { tradeKey: string }) {
       const result = await postJson<{ critique: string }>("/api/ai/critique", { key: tradeKey });
       setCritique(result.critique);
     } catch (error) {
-      setAiError(error instanceof Error ? error.message : "AI critique failed");
+      setAiError(error instanceof Error ? error.message : t("critiqueFailed"));
     } finally {
       setAiBusy(false);
     }
   };
-
-  const riskAmount = trade.riskAmount;
 
   return (
     <div>
@@ -169,7 +169,7 @@ function TradeView({ tradeKey }: { tradeKey: string }) {
           <Card>
             <CardContent className="flex flex-wrap items-center gap-x-8 gap-y-3 py-4">
               <div>
-                <div className="text-xs text-muted-foreground">Net P&L</div>
+                <div className="text-xs text-muted-foreground">{t("netPnl")}</div>
                 <Pnl value={trade.netPnl} className="text-2xl font-semibold" />
               </div>
               <Badge
@@ -180,23 +180,23 @@ function TradeView({ tradeKey }: { tradeKey: string }) {
               >
                 {trade.status.toUpperCase()}
               </Badge>
-              <Meta label="Gross" value={fmtMoney(trade.grossPnl)} monetary />
-              <Meta label="Fees" value={fmtMoney(trade.fees)} monetary />
-              <Meta label="Volume" value={fmtNumber(trade.quantity, 4)} />
-              <Meta label="Avg entry" value={fmtNumber(trade.avgEntry)} monetary />
+              <Meta label={t("gross")} value={fmtMoney(trade.grossPnl)} monetary />
+              <Meta label={t("fees")} value={fmtMoney(trade.fees)} monetary />
+              <Meta label={t("volume")} value={fmtNumber(trade.quantity, 4)} />
+              <Meta label={t("avgEntry")} value={fmtNumber(trade.avgEntry)} monetary />
               <Meta
-                label="Avg exit"
+                label={t("avgExit")}
                 monetary
-                value={trade.avgExit === null ? "open" : fmtNumber(trade.avgExit)}
+                value={trade.avgExit === null ? t("open") : fmtNumber(trade.avgExit)}
               />
-              <Meta label="Duration" value={fmtDuration(trade.durationMs)} />
-              <Meta label="Net / entry notional" value={fmtPercent(netReturnOnEntry(trade), 2)} />
+              <Meta label={t("duration")} value={fmtDuration(trade.durationMs)} />
+              <Meta label={t("netPerEntry")} value={fmtPercent(netReturnOnEntry(trade), 2)} />
               <Meta
-                label="Planned R"
+                label={t("plannedR")}
                 value={trade.plannedR === null ? "–" : `${fmtNumber(trade.plannedR)}R`}
               />
               <Meta
-                label="Realized R"
+                label={t("realizedR")}
                 value={trade.realizedR === null ? "–" : `${fmtNumber(trade.realizedR)}R`}
               />
             </CardContent>
@@ -207,8 +207,10 @@ function TradeView({ tradeKey }: { tradeKey: string }) {
           {runningPnl.length > 1 && (
             <Card>
               <CardHeader>
-                <CardTitle>Running P&L</CardTitle>
-                <p className="text-xs text-muted-foreground">Times in {timeZone}</p>
+                <CardTitle>{t("runningPnl")}</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  {t("timesIn", { timeZone })}
+                </p>
               </CardHeader>
               <CardContent>
                 <EquityArea data={runningPnl} height={180} />
@@ -218,18 +220,18 @@ function TradeView({ tradeKey }: { tradeKey: string }) {
 
           <Card>
             <CardHeader>
-              <CardTitle>Executions</CardTitle>
-              <p className="text-xs text-muted-foreground">Times in {timeZone}</p>
+              <CardTitle>{t("executions")}</CardTitle>
+              <p className="text-xs text-muted-foreground">{t("timesIn", { timeZone })}</p>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Side</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Fee</TableHead>
+                    <TableHead>{t("colTime")}</TableHead>
+                    <TableHead>{t("colSide")}</TableHead>
+                    <TableHead>{t("colQuantity")}</TableHead>
+                    <TableHead>{t("colPrice")}</TableHead>
+                    <TableHead>{t("colFee")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -242,7 +244,7 @@ function TradeView({ tradeKey }: { tradeKey: string }) {
                         </TableCell>
                         <TableCell>
                           <span className={execution.side === "buy" ? "text-profit" : "text-loss"}>
-                            {execution.side === "buy" ? "▲ BUY" : "▼ SELL"}
+                            {execution.side === "buy" ? t("buy") : t("sell")}
                           </span>
                         </TableCell>
                         <TableCell className="tnum">{fmtNumber(execution.quantity, 4)}</TableCell>
@@ -265,10 +267,10 @@ function TradeView({ tradeKey }: { tradeKey: string }) {
           <RuleChecklist tradeKey={trade.key} playbookId={trade.playbookId} />
           <Card>
             <CardHeader className="flex-row items-center justify-between">
-              <CardTitle>AI review</CardTitle>
+              <CardTitle>{t("aiReview")}</CardTitle>
               <Button variant="outline" size="sm" onClick={askCritique} disabled={aiBusy}>
                 <Sparkles />
-                {aiBusy ? "Thinking…" : "Critique this trade"}
+                {aiBusy ? t("thinking") : t("critique")}
               </Button>
             </CardHeader>
             {aiError && (
@@ -318,6 +320,7 @@ function AnnotationsCard({
   trade: TradeDetail;
   onPatch: (body: Record<string, unknown>) => Promise<void>;
 }) {
+  const t = useTranslations("tradeDetail");
   const [notes, setNotes] = useState(trade.notes ?? "");
   const noteEditor = useRef<RichEditorHandle>(null);
   const [tags, setTags] = useState((JSON.parse(trade.tagsJson ?? "[]") as string[]).join(", "));
@@ -344,7 +347,7 @@ function AnnotationsCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Journal this trade</CardTitle>
+        <CardTitle>{t("journalTitle")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-center justify-between">
@@ -354,13 +357,13 @@ function AnnotationsCard({
               checked={trade.reviewedAt !== null}
               onCheckedChange={(checked) => void onPatch({ reviewed: checked === true })}
             />
-            Reviewed
+            {t("reviewed")}
           </label>
         </div>
 
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-xs text-muted-foreground">Stop loss</label>
+            <label className="text-xs text-muted-foreground">{t("stopLoss")}</label>
             <MonetaryField>
               <Input
                 value={stopLoss}
@@ -370,13 +373,13 @@ function AnnotationsCard({
                     stopLoss: event.target.value === "" ? null : Number(event.target.value),
                   });
                 }}
-                placeholder="planned stop"
+                placeholder={t("plannedStop")}
                 inputMode="decimal"
               />
             </MonetaryField>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground">Profit target</label>
+            <label className="text-xs text-muted-foreground">{t("profitTarget")}</label>
             <MonetaryField>
               <Input
                 value={profitTarget}
@@ -386,7 +389,7 @@ function AnnotationsCard({
                     profitTarget: event.target.value === "" ? null : Number(event.target.value),
                   });
                 }}
-                placeholder="planned target"
+                placeholder={t("plannedTarget")}
                 inputMode="decimal"
               />
             </MonetaryField>
@@ -394,16 +397,16 @@ function AnnotationsCard({
         </div>
 
         <div>
-          <label className="text-xs text-muted-foreground">Playbook</label>
+          <label className="text-xs text-muted-foreground">{t("playbook")}</label>
           <Select
             value={trade.playbookId ?? "none"}
             onValueChange={(value) => void onPatch({ playbookId: value === "none" ? null : value })}
           >
             <SelectTrigger>
-              <SelectValue placeholder="No playbook" />
+              <SelectValue placeholder={t("noPlaybook")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">No playbook</SelectItem>
+              <SelectItem value="none">{t("noPlaybook")}</SelectItem>
               {playbookData?.playbooks.map((playbook) => (
                 <SelectItem key={playbook.id} value={playbook.id}>
                   {playbook.name}
@@ -414,31 +417,31 @@ function AnnotationsCard({
         </div>
 
         <div>
-          <label className="text-xs text-muted-foreground">Tags (comma-separated)</label>
+          <label className="text-xs text-muted-foreground">{t("tags")}</label>
           <Input
             value={tags}
             onChange={(event) => {
               setTags(event.target.value);
               debounced({ tags: parseList(event.target.value) });
             }}
-            placeholder="breakout, A+ setup"
+            placeholder={t("tagsPlaceholder")}
           />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground">Mistakes</label>
+          <label className="text-xs text-muted-foreground">{t("mistakes")}</label>
           <Input
             value={mistakes}
             onChange={(event) => {
               setMistakes(event.target.value);
               debounced({ mistakes: parseList(event.target.value) });
             }}
-            placeholder="chased entry, moved stop"
+            placeholder={t("mistakesPlaceholder")}
           />
         </div>
 
         <div>
           <div className="mb-1 flex items-center justify-between">
-            <label className="text-xs text-muted-foreground">Notes</label>
+            <label className="text-xs text-muted-foreground">{t("notes")}</label>
             <VoiceNote
               onPrepare={() => noteEditor.current?.focus()}
               onText={(text) => {
@@ -459,13 +462,13 @@ function AnnotationsCard({
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span role="status">{saveStatus}</span>
             <Button variant="ghost" size="sm" onClick={() => void flush()}>
-              Save now
+              {t("saveNow")}
             </Button>
           </div>
           <ReviewExport
             containsFinancialData
             document={{
-              title: `${trade.symbol} · ${trade.direction} review`,
+              title: t("reviewTitle", { symbol: trade.symbol, direction: trade.direction }),
               subtitle: `${trade.openedAt} · ${trade.currency}`,
               lines: [
                 `Status: ${trade.status} | Quantity: ${trade.quantity}`,

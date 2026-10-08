@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { CurrencyPicker } from "./currency-picker";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -14,6 +15,8 @@ import {
 import { postJson, useApi } from "@/lib/use-api";
 
 export function CurrencySettings() {
+  const t = useTranslations("settingsCurrency");
+  const tCommon = useTranslations("common");
   const settings = useApi<{ currencyConversion: CurrencyConversion }>("/api/settings");
   const accounts = useApi<{ accounts: { currency: string }[] }>("/api/accounts");
   const [enabled, setEnabled] = useState(false);
@@ -56,13 +59,13 @@ export function CurrencySettings() {
         (code) => code !== reportingCurrency && !config.rates[code],
       );
       if (enabled && missing.length)
-        throw new Error(`Enter a rate for ${missing.join(", ")} before enabling conversion.`);
+        throw new Error(t("missingRates", { codes: missing.join(", ") }));
       setBusy(true);
       await postJson("/api/settings", { currencyConversion: config }, "PATCH");
       setSaved(true);
       settings.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not save conversion rates.");
+      setError(cause instanceof Error ? cause.message : t("saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -70,12 +73,10 @@ export function CurrencySettings() {
   return (
     <Card id="currency-conversion" className="scroll-mt-20">
       <CardHeader>
-        <CardTitle>Currency conversion</CardTitle>
+        <CardTitle>{t("title")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Combine accounts using your own saved exchange rates. Works entirely offline.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("intro")}</p>
         <fieldset disabled={busy || !settings.data || !accounts.data} className="space-y-4">
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -86,10 +87,10 @@ export function CurrencySettings() {
                 dirty();
               }}
             />
-            Convert dashboard and calendar to the reporting currency
+            {t("enable")}
           </label>
           <div className="space-y-1">
-            <Label htmlFor="reporting-currency">Reporting currency</Label>
+            <Label htmlFor="reporting-currency">{t("reportingCurrency")}</Label>
             <CurrencyPicker
               id="reporting-currency"
               value={reportingCurrency}
@@ -100,9 +101,7 @@ export function CurrencySettings() {
                 dirty();
               }}
             />
-            <p className="text-xs text-muted-foreground">
-              Changing the reporting currency clears the draft rates. Enter new rates before saving.
-            </p>
+            <p className="text-xs text-muted-foreground">{t("reportingHelp")}</p>
           </div>
           <div className="space-y-3">
             {currencies.map((code) => (
@@ -116,7 +115,7 @@ export function CurrencySettings() {
                     step="any"
                     min="0"
                     className="w-40"
-                    aria-label={`Reporting-currency units per 1 ${code}`}
+                    aria-label={t("rateAria", { code })}
                     value={code === reportingCurrency ? "1" : (rates[code] ?? "")}
                     disabled={code === reportingCurrency}
                     onChange={(event) => {
@@ -129,13 +128,9 @@ export function CurrencySettings() {
               </div>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">
-            These are fixed baseline rates, not live market rates. Changing saved rates recalculates
-            all dashboard and calendar history, including starting balances and drawdown. Original
-            account records, trade details and reports keep their account currencies.
-          </p>
+          <p className="text-xs text-muted-foreground">{t("ratesHelp")}</p>
           <Button onClick={save} disabled={busy}>
-            {busy ? "Saving…" : "Save conversion settings"}
+            {busy ? tCommon("saving") : t("save")}
           </Button>
         </fieldset>
         {(error || settings.error || accounts.error) && (
@@ -145,7 +140,7 @@ export function CurrencySettings() {
         )}
         {saved && (
           <p role="status" className="text-sm text-muted-foreground">
-            Conversion settings saved. Dashboard and calendar figures now use these settings.
+            {t("saved")}
           </p>
         )}
       </CardContent>

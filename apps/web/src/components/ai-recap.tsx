@@ -1,6 +1,7 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { AnalysisFilters } from "@luxalgo/journal-core";
 import { Button } from "./ui/button";
 import { AiNotice } from "./ai-notice";
@@ -21,6 +22,7 @@ export function AiRecap({
   disabled: boolean;
   onRecap: (result: { recap: string; scope: AiScope }) => void;
 }) {
+  const t = useTranslations("journal");
   const { run, busy, error, dismiss } = useAiRequest();
   const generate = () =>
     run(
@@ -37,7 +39,7 @@ export function AiRecap({
         disabled={busy || disabled}
       >
         <Sparkles />
-        {busy ? "Writing…" : "AI recap"}
+        {busy ? t("aiWriting") : t("aiRecap")}
       </Button>
       {error && <AiNotice error={error} onRetry={() => void generate()} onDismiss={dismiss} />}
     </div>

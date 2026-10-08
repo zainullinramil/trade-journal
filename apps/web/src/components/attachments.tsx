@@ -1,6 +1,7 @@
 "use client";
 import { HoverHint } from "./ui/tooltip";
 import { useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Paperclip, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { postJson, useApi } from "@/lib/use-api";
@@ -11,6 +12,7 @@ export function Attachments({
   type: "trade" | "day" | "note" | "missed" | "prop-account" | "prop-entry";
   id: string;
 }) {
+  const t = useTranslations("attachments");
   const { data, error, refresh } = useApi<{
     attachments: { id: string; name: string; mime: string; size: number }[];
   }>(`/api/attachments?type=${type}&id=${encodeURIComponent(id)}`);
@@ -28,13 +30,13 @@ export function Attachments({
           onClick={() => input.current?.click()}
         >
           <Paperclip />
-          {busy ? "Uploading…" : "Add attachment"}
+          {busy ? t("uploading") : t("add")}
         </Button>
-        <span className="text-xs text-muted-foreground">Images or PDF · up to 8 MB each</span>
+        <span className="text-xs text-muted-foreground">{t("hint")}</span>
       </div>
       <input
         ref={input}
-        aria-label="Upload attachment"
+        aria-label={t("uploadLabel")}
         type="file"
         accept="image/png,image/jpeg,image/webp,application/pdf"
         className="hidden"
@@ -54,7 +56,7 @@ export function Attachments({
               if (!r.ok) throw new Error(result.error);
             }
           } catch (err) {
-            setFailure(err instanceof Error ? err.message : "Upload failed.");
+            setFailure(err instanceof Error ? err.message : t("uploadFailed"));
           } finally {
             setBusy(false);
             if (input.current) input.current.value = "";
@@ -94,9 +96,9 @@ export function Attachments({
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
-                aria-label={`Remove ${a.name}`}
+                aria-label={t("remove", { name: a.name })}
                 onClick={async () => {
-                  if (!confirm(`Remove ${a.name}?`)) return;
+                  if (!confirm(t("removeConfirm", { name: a.name }))) return;
                   try {
                     await postJson(`/api/attachments/${a.id}`, undefined, "DELETE");
                     refresh();

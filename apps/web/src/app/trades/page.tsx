@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
@@ -71,6 +73,9 @@ export default function TradesPage() {
 }
 
 function Trades() {
+  const tNav = useTranslations("nav");
+  const t = useTranslations("trades");
+  const tCommon = useTranslations("common");
   const { query } = useFilters();
   const { data, error, refresh } = useApi<{
     trades: TradeRow[];
@@ -100,7 +105,7 @@ function Trades() {
                   : false
             }
             onCheckedChange={(value) => table.toggleAllRowsSelected(value === true)}
-            aria-label="Select all matching trades"
+            aria-label={t("selectAll")}
           />
         ),
         cell: ({ row }) => (
@@ -108,24 +113,24 @@ function Trades() {
             checked={row.getIsSelected()}
             onCheckedChange={(value) => row.toggleSelected(value === true)}
             onClick={(event) => event.stopPropagation()}
-            aria-label="Select trade"
+            aria-label={t("selectTrade")}
           />
         ),
       },
       {
         id: "closedAt",
         accessorKey: "closedAt",
-        header: "Close date",
+        header: t("colCloseDate"),
         cell: ({ getValue }) => (
           <span className="text-muted-foreground">
-            {getValue<string | null>() ? dayKeyOf(getValue<string>(), timeZone) : "open"}
+            {getValue<string | null>() ? dayKeyOf(getValue<string>(), timeZone) : t("open")}
           </span>
         ),
       },
       {
         id: "symbol",
         accessorKey: "symbol",
-        header: "Symbol",
+        header: t("colSymbol"),
         cell: ({ row, getValue }) => (
           <span className="flex items-center gap-2 font-medium">
             {getValue<string>()}
@@ -136,7 +141,7 @@ function Trades() {
       {
         id: "status",
         accessorKey: "status",
-        header: "Status",
+        header: t("colStatus"),
         cell: ({ getValue }) => {
           const status = getValue<string>();
           return (
@@ -149,13 +154,13 @@ function Trades() {
       {
         id: "quantity",
         accessorKey: "quantity",
-        header: "Volume",
+        header: t("colVolume"),
         cell: ({ getValue }) => <span className="tnum">{fmtNumber(getValue<number>(), 4)}</span>,
       },
       {
         id: "avgEntry",
         accessorKey: "avgEntry",
-        header: "Entry",
+        header: t("colEntry"),
         cell: ({ getValue }) => (
           <span className="tnum">
             <MonetaryValue>{fmtNumber(getValue<number>())}</MonetaryValue>
@@ -165,7 +170,7 @@ function Trades() {
       {
         id: "avgExit",
         accessorKey: "avgExit",
-        header: "Exit",
+        header: t("colExit"),
         cell: ({ getValue }) => (
           <span className="tnum">
             <MonetaryValue>
@@ -177,7 +182,7 @@ function Trades() {
       {
         id: "netPnl",
         accessorKey: "netPnl",
-        header: "Net P&L",
+        header: t("colNetPnl"),
         cell: ({ getValue }) => <Pnl value={getValue<number>()} />,
       },
       {
@@ -186,7 +191,7 @@ function Trades() {
         sortUndefined: "last",
         sortDescFirst: true,
         sortFn: "basic",
-        header: "Net ROI",
+        header: t("colNetRoi"),
         cell: ({ getValue }) => (
           <span className="tnum">{fmtPercent(getValue<number | undefined>() ?? null, 2)}</span>
         ),
@@ -194,7 +199,7 @@ function Trades() {
       {
         id: "fees",
         accessorKey: "fees",
-        header: "Fees",
+        header: t("colFees"),
         cell: ({ getValue }) => (
           <span className="tnum text-muted-foreground">
             <MonetaryValue>{fmtMoney(getValue<number>())}</MonetaryValue>
@@ -204,7 +209,7 @@ function Trades() {
       {
         id: "durationMs",
         accessorKey: "durationMs",
-        header: "Duration",
+        header: t("colDuration"),
         cell: ({ getValue }) => (
           <span className="text-muted-foreground">{fmtDuration(getValue<number | null>())}</span>
         ),
@@ -212,7 +217,7 @@ function Trades() {
       {
         id: "executionCount",
         accessorKey: "executionCount",
-        header: "Execs",
+        header: t("colExecs"),
         cell: ({ getValue }) => (
           <span className="tnum text-muted-foreground">{getValue<number>()}</span>
         ),
@@ -221,7 +226,7 @@ function Trades() {
         id: "tags",
         accessorKey: "tags",
         enableSorting: false,
-        header: "Tags",
+        header: t("colTags"),
         cell: ({ getValue }) => (
           <span className="flex max-w-40 flex-wrap gap-1">
             {getValue<string[]>().map((tag) => (
@@ -235,7 +240,7 @@ function Trades() {
       {
         id: "rating",
         accessorKey: "rating",
-        header: "Rating",
+        header: t("colRating"),
         cell: ({ getValue }) => {
           const rating = getValue<number | null>();
           return (
@@ -248,7 +253,7 @@ function Trades() {
       {
         id: "reviewed",
         accessorKey: "reviewed",
-        header: "Reviewed",
+        header: t("colReviewed"),
         cell: ({ getValue }) =>
           getValue<boolean>() ? (
             <Check className="h-4 w-4 text-profit" />
@@ -257,7 +262,7 @@ function Trades() {
           ),
       },
     ],
-    [timeZone],
+    [t, timeZone],
   );
 
   const table = useTable({
@@ -286,7 +291,7 @@ function Trades() {
   return (
     <div>
       <FilterBar
-        title="Trades"
+        title={tNav("trades")}
         actions={
           <div className="flex items-center gap-2">
             <a href={`/api/export?format=csv&${query}`} download>
@@ -297,7 +302,7 @@ function Trades() {
             </a>
             <Button variant="outline" size="sm" onClick={() => setShowColumns((value) => !value)}>
               <Columns3 />
-              Columns
+              {t("columns")}
             </Button>
           </div>
         }
@@ -307,16 +312,18 @@ function Trades() {
           <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 xl:grid-cols-4">
             <Card>
               <CardHeader>
-                <CardTitle>Net cumulative P&L</CardTitle>
+                <CardTitle>{t("netCumulativePnl")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <Pnl value={m.netPnl} className="text-xl font-semibold" />
-                <span className="ml-2 text-xs text-muted-foreground">{m.closedTrades} trades</span>
+                <span className="ml-2 text-xs text-muted-foreground">
+                  {t("tradesCount", { count: m.closedTrades })}
+                </span>
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Profit factor</CardTitle>
+                <CardTitle>{t("profitFactor")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <span className="text-xl font-semibold tnum">
@@ -330,7 +337,7 @@ function Trades() {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Trade win %</CardTitle>
+                <CardTitle>{t("tradeWinPct")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <span className="text-xl font-semibold tnum">{fmtPercent(m.winRate)}</span>
@@ -338,7 +345,7 @@ function Trades() {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Avg win / loss</CardTitle>
+                <CardTitle>{t("avgWinLoss")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <span className="text-xl font-semibold tnum">
@@ -373,19 +380,21 @@ function Trades() {
         {selectedKeys.length > 0 && (
           <Card>
             <CardContent className="flex flex-wrap items-center gap-2 py-2">
-              <span className="text-sm text-muted-foreground">{selectedKeys.length} selected</span>
+              <span className="text-sm text-muted-foreground">
+                {t("selected", { count: selectedKeys.length })}
+              </span>
               <Button variant="outline" size="sm" onClick={() => bulk("review")}>
                 <Check />
-                Mark reviewed
+                {t("markReviewed")}
               </Button>
               <Button variant="outline" size="sm" onClick={() => bulk("unreview")}>
-                Unreview
+                {t("unreview")}
               </Button>
               <div className="flex max-w-full flex-wrap items-center gap-1">
                 <Input
                   value={tagInput}
                   onChange={(event) => setTagInput(event.target.value)}
-                  placeholder="tag"
+                  placeholder={t("tagPlaceholder")}
                   className="h-8 w-28 text-xs"
                 />
                 <Button
@@ -398,23 +407,19 @@ function Trades() {
                   }}
                 >
                   <Tag />
-                  Tag
+                  {t("tag")}
                 </Button>
               </div>
               <Button
                 variant="destructive"
                 size="sm"
                 onClick={() => {
-                  if (
-                    confirm(
-                      `Delete ${selectedKeys.length} trades and their executions? This cannot be undone.`,
-                    )
-                  )
+                  if (confirm(t("deleteConfirm", { count: selectedKeys.length })))
                     void bulk("delete");
                 }}
               >
                 <Trash2 />
-                Delete
+                {t("delete")}
               </Button>
             </CardContent>
           </Card>
@@ -424,7 +429,7 @@ function Trades() {
           <div role="alert" className="space-y-2 text-sm text-destructive">
             <p>{error}</p>
             <Button variant="outline" onClick={refresh}>
-              Try again
+              {tCommon("tryAgain")}
             </Button>
           </div>
         ) : !data ? (
@@ -487,9 +492,9 @@ function Trades() {
                         colSpan={columns.length}
                         className="py-16 text-center text-muted-foreground"
                       >
-                        No trades match these filters.{" "}
+                        {t("empty")}{" "}
                         <Link href="/import" className="underline">
-                          Import some
+                          {t("importSome")}
                         </Link>
                         .
                       </td>
@@ -501,9 +506,11 @@ function Trades() {
             {sortedRows.length > pageSize && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 text-xs text-muted-foreground">
                 <span>
-                  {currentPage * pageSize + 1}–
-                  {Math.min((currentPage + 1) * pageSize, sortedRows.length)} of{" "}
-                  {fmtNumber(sortedRows.length, 0)} trades
+                  {t("pageRange", {
+                    from: currentPage * pageSize + 1,
+                    to: Math.min((currentPage + 1) * pageSize, sortedRows.length),
+                    total: fmtNumber(sortedRows.length, 0),
+                  })}
                 </span>
                 <div className="flex items-center gap-2">
                   <Button
@@ -512,18 +519,16 @@ function Trades() {
                     disabled={currentPage === 0}
                     onClick={() => setPage(currentPage - 1)}
                   >
-                    Previous
+                    {t("previous")}
                   </Button>
-                  <span>
-                    Page {currentPage + 1} of {pageCount}
-                  </span>
+                  <span>{t("pageOf", { page: currentPage + 1, pages: pageCount })}</span>
                   <Button
                     variant="outline"
                     size="sm"
                     disabled={currentPage + 1 === pageCount}
                     onClick={() => setPage(currentPage + 1)}
                   >
-                    Next
+                    {t("next")}
                   </Button>
                 </div>
               </div>

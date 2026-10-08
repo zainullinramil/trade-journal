@@ -1,4 +1,6 @@
 "use client";
+
+import { useTranslations } from "next-intl";
 import { DatePicker } from "@/components/ui/date-picker";
 import { OptionSelect } from "@/components/ui/option-select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,7 +15,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ReviewExport } from "@/components/review-export";
 import { useApi, postJson } from "@/lib/use-api";
 import { scheduledRules, progressScore, type Routine, type RoutineCheck } from "@/lib/progress";
-const STAGES = ["Before trading", "During trading", "After trading"];
+
+const STAGE_VALUES = ["Before trading", "During trading", "After trading"] as const;
+const DAY_KEYS = ["daySun", "dayMon", "dayTue", "dayWed", "dayThu", "dayFri", "daySat"] as const;
+
 export default function ProgressPage() {
   return (
     <Suspense>
@@ -22,6 +27,9 @@ export default function ProgressPage() {
   );
 }
 function Progress() {
+  const t = useTranslations("progress");
+  const tNav = useTranslations("nav");
+  const tFilters = useTranslations("filters");
   const { data, error, refresh } = useApi<{
     rules: Routine[];
     checks: RoutineCheck[];
@@ -30,7 +38,7 @@ function Progress() {
   const [date, setDate] = useState(""),
     [open, setOpen] = useState(false),
     [title, setTitle] = useState(""),
-    [stage, setStage] = useState(STAGES[0]!),
+    [stage, setStage] = useState<string>(STAGE_VALUES[0]),
     [weekdays, setWeekdays] = useState([1, 2, 3, 4, 5]),
     [failure, setFailure] = useState(""),
     [busy, setBusy] = useState(false);
@@ -45,6 +53,12 @@ function Progress() {
         return { date: key, ...progressScore(data.rules, data.checks, key) };
       })
     : [];
+  const stageLabel = (value: string) => {
+    if (value === "Before trading") return t("stageBefore");
+    if (value === "During trading") return t("stageDuring");
+    if (value === "After trading") return t("stageAfter");
+    return value;
+  };
   async function act(body: unknown, method: "POST" | "DELETE" = "POST") {
     setBusy(true);
     try {
@@ -53,7 +67,7 @@ function Progress() {
       refresh();
       return true;
     } catch (e) {
-      setFailure(e instanceof Error ? e.message : "Could not save.");
+      setFailure(e instanceof Error ? e.message : t("saveFailed"));
       return false;
     } finally {
       setBusy(false);
@@ -62,18 +76,15 @@ function Progress() {
   return (
     <div>
       <FilterBar
-        title="Progress"
+        title={tNav("progress")}
         actions={
           <Button size="sm" onClick={() => setOpen(true)}>
-            Add routine
+            {t("addRoutine")}
           </Button>
         }
       />
       <div className="space-y-4 p-4">
-        <p className="text-sm text-muted-foreground">
-          Build a repeatable trading day. Routines are tracked independently of trade filters and
-          profit.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("intro")}</p>
         {(error || failure) && (
           <p role="alert" className="text-sm text-destructive">
             {error || failure}
@@ -83,17 +94,20 @@ function Progress() {
           <CardContent className="flex flex-wrap items-center justify-between gap-6 py-6">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
               <div>
-                <p className="text-xs text-muted-foreground">Daily completion</p>
+                <p className="text-xs text-muted-foreground">{t("dailyCompletion")}</p>
                 <p className="text-4xl font-semibold">
                   {score?.score == null ? "-" : `${Math.round(score.score * 100)}%`}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {score?.completed ?? 0} of {score?.total ?? 0} scheduled routines
+                  {t("scheduledRoutines", {
+                    completed: score?.completed ?? 0,
+                    total: score?.total ?? 0,
+                  })}
                 </p>
               </div>
-              <Field label="Review date">
+              <Field label={t("reviewDate")}>
                 <DatePicker
-                  label="Progress date"
+                  label={t("progressDate")}
                   value={selected}
                   max={data?.today}
                   onValueChange={setDate}
@@ -102,12 +116,15 @@ function Progress() {
             </div>
             <ReviewExport
               document={{
-                title: `Routine review · ${selected}`,
+                title: t("exportTitle", { date: selected }),
                 lines: [
-                  `Completed: ${score?.completed ?? 0}/${score?.total ?? 0}`,
+                  t("exportCompleted", {
+                    completed: score?.completed ?? 0,
+                    total: score?.total ?? 0,
+                  }),
                   ...rules.map(
                     (r) =>
-                      `${data?.checks.some((c) => c.date === selected && c.ruleId === r.id && c.done) ? "[done]" : "[ ]"} ${r.stage}: ${r.title}`,
+                      `${data?.checks.some((c) => c.date === selected && c.ruleId === r.id && c.done) ? t("exportDone") : t("exportTodo")} ${stageLabel(r.stage)}: ${r.title}`,
                   ),
                 ],
               }}
@@ -115,10 +132,10 @@ function Progress() {
           </CardContent>
         </Card>
         <div className="grid gap-4 xl:grid-cols-3">
-          {STAGES.map((s) => (
+          {STAGE_VALUES.map((s) => (
             <Card key={s}>
               <CardHeader>
-                <CardTitle>{s}</CardTitle>
+                <CardTitle>{stageLabel(s)}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {rules
@@ -144,17 +161,17 @@ function Progress() {
                         <button
                           className="text-xs text-muted-foreground underline"
                           onClick={() => {
-                            if (confirm(`Archive “${r.title}”? Previous days are preserved.`))
+                            if (confirm(t("archiveConfirm", { title: r.title })))
                               void act({ id: r.id }, "DELETE");
                           }}
                         >
-                          Archive
+                          {t("archive")}
                         </button>
                       )}
                     </div>
                   ))}
                 {!rules.some((r) => r.stage === s) && (
-                  <p className="text-xs text-muted-foreground">No routines scheduled.</p>
+                  <p className="text-xs text-muted-foreground">{t("noRoutines")}</p>
                 )}
               </CardContent>
             </Card>
@@ -162,7 +179,7 @@ function Progress() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Last 13 weeks</CardTitle>
+            <CardTitle>{t("last13Weeks")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-flow-col grid-rows-7 gap-1 overflow-x-auto">
@@ -170,11 +187,15 @@ function Progress() {
                 <HoverHint
                   key={d.date}
                   heading={d.date}
-                  content={`${d.completed} of ${d.total} routines completed`}
+                  content={t("dayHint", { completed: d.completed, total: d.total })}
                 >
                   <button
                     key={d.date}
-                    aria-label={`${d.date}: ${d.completed}/${d.total} complete`}
+                    aria-label={t("dayAria", {
+                      date: d.date,
+                      completed: d.completed,
+                      total: d.total,
+                    })}
                     onClick={() => setDate(d.date)}
                     className={`min-h-7 min-w-7 rounded border ${selected === d.date ? "border-foreground" : "border-transparent"}`}
                     style={{
@@ -187,39 +208,38 @@ function Progress() {
                 </HoverHint>
               ))}
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">
-              Brighter squares mean a higher completion rate. Grey means no scheduled routines.
-              Click a day to review it. New routines start today.
-            </p>
+            <p className="mt-3 text-xs text-muted-foreground">{t("heatmapHelp")}</p>
           </CardContent>
         </Card>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add a daily routine</DialogTitle>
+              <DialogTitle>{t("addDialogTitle")}</DialogTitle>
             </DialogHeader>
-            <Field label="Routine">
+            <Field label={t("routine")}>
               <input
                 className={fieldClass}
                 value={title}
-                placeholder="Review the economic calendar"
+                placeholder={t("routinePlaceholder")}
                 onChange={(e) => setTitle(e.target.value)}
               />
             </Field>
-            <Field label="When">
+            <Field label={t("when")}>
               <OptionSelect
                 className={fieldClass}
                 value={stage}
                 onValueChange={(next) => setStage(next)}
               >
-                {STAGES.map((s) => (
-                  <option key={s}>{s}</option>
+                {STAGE_VALUES.map((s) => (
+                  <option key={s} value={s}>
+                    {stageLabel(s)}
+                  </option>
                 ))}
               </OptionSelect>
             </Field>
             <div className="flex flex-wrap gap-3">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => (
-                <label key={day} className="flex items-center gap-1 text-xs">
+              {DAY_KEYS.map((dayKey, i) => (
+                <label key={dayKey} className="flex items-center gap-1 text-xs">
                   <Checkbox
                     checked={weekdays.includes(i)}
                     onCheckedChange={(checked) =>
@@ -228,7 +248,7 @@ function Progress() {
                       )
                     }
                   />
-                  {day}
+                  {tFilters(dayKey)}
                 </label>
               ))}
             </div>
@@ -246,7 +266,7 @@ function Progress() {
                 }
               }}
             >
-              Add routine
+              {t("addRoutine")}
             </Button>
           </DialogContent>
         </Dialog>
