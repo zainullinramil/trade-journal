@@ -14,6 +14,10 @@ FROM node:22-slim AS runner
 ENV NODE_ENV=production
 ENV JOURNAL_DATA_DIR=/data
 WORKDIR /app
+# Coolify/compose healthchecks expect curl; slim image ships without it.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends curl \
+  && rm -rf /var/lib/apt/lists/*
 # Next standalone output bundles the server and pruned node_modules.
 COPY --from=builder /repo/apps/web/.next/standalone ./
 COPY --from=builder /repo/apps/web/.next/static ./apps/web/.next/static
